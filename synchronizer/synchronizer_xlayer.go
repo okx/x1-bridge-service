@@ -112,6 +112,7 @@ func (s *ClientSynchronizer) afterProcessDeposit(deposit *etherman.Deposit, depo
 		if err != nil {
 			log.Errorf("PushTransactionUpdate error: %v", err)
 		}
+		log.Infof("PushTransactionUpdate success, tx: %v", transaction.String())
 		// filter and cache large transactions
 		s.filterLargeTransaction(s.ctx, transaction, uint(chainId))
 	}()
