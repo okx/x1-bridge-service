@@ -158,6 +158,7 @@ func (p *kafkaProducerImpl) PushTransactionUpdate(tx *pb.Transaction, optFns ...
 		return errors.Wrap(err, "json marshal error")
 	}
 
+	log.Infof("PushTransactionUpdate: %v", string(b))
 	msg := &PushMessage{
 		BizCode:       p.bizCode.Get(),
 		WalletAddress: tx.GetDestAddr(),
