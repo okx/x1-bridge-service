@@ -11,7 +11,6 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-bridge-service/bridgectrl/pb"
 	"github.com/0xPolygonHermez/zkevm-bridge-service/log"
-	"github.com/0xPolygonHermez/zkevm-bridge-service/nacos"
 	"github.com/alibaba/sentinel-golang/core/base"
 	sentinelGrpc "github.com/alibaba/sentinel-golang/pkg/adapters/grpc"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -23,17 +22,10 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
+// For X Layer
 const (
 	bridgeEndpointPath = "/priapi/v1/ob/bridge"
 )
-
-func RegisterNacos(cfg nacos.Config) {
-	var err error
-	if cfg.NacosUrls != "" {
-		err = nacos.InitNacosClient(cfg.NacosUrls, cfg.NamespaceId, cfg.ApplicationName, cfg.ExternalListenAddr)
-	}
-	log.Debugf("Init nacos NacosUrls[%s] NamespaceId[%s] ApplicationName[%s] ExternalListenAddr[%s] Error[%v]", cfg.NacosUrls, cfg.NamespaceId, cfg.ApplicationName, cfg.ExternalListenAddr, err)
-}
 
 // RunServer runs gRPC server and HTTP gateway
 func RunServer(cfg Config, bridgeService pb.BridgeServiceServer) error {
@@ -91,6 +83,7 @@ func runGRPCServer(ctx context.Context, bridgeServer pb.BridgeServiceServer, por
 		return err
 	}
 
+	// For X Layer
 	// Fallback function to be triggered when there's a block error from Sentinel
 	blockErrFallbackFn := func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, blockErr *base.BlockError) (interface{}, error) {
 		// ResourceExhausted status will be mapped to code 429 in the HTTP transcoder
@@ -123,6 +116,7 @@ func runGRPCServer(ctx context.Context, bridgeServer pb.BridgeServiceServer, por
 }
 
 func preflightHandler(w http.ResponseWriter, r *http.Request) {
+	// For X Layer
 	//headers := []string{"Content-Type", "Accept", "X-Locale", "X-Utc", "X-Zkdex-Env", "App-Type", "Referer", "User-Agent", "Devid"}
 	w.Header().Set("Access-Control-Allow-Headers", "*")
 	//methods := []string{"GET", "HEAD", "POST", "PUT", "DELETE"}
@@ -151,7 +145,7 @@ func runRestServer(ctx context.Context, grpcPort, httpPort string) error {
 
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
 	endpoint := "localhost:" + grpcPort
-	conn, err := grpc.Dial(endpoint, opts...)
+	conn, err := grpc.NewClient(endpoint, opts...)
 	if err != nil {
 		return err
 	}
@@ -168,6 +162,7 @@ func runRestServer(ctx context.Context, grpcPort, httpPort string) error {
 	})
 	mux := runtime.NewServeMux(muxJSONOpt, muxHealthOpt)
 
+	// For X Layer
 	httpMux := http.NewServeMux()
 	httpMux.Handle(bridgeEndpointPath+"/", http.StripPrefix(bridgeEndpointPath, mux))
 	httpMux.Handle("/", mux)

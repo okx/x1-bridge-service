@@ -12,6 +12,6 @@ type Config struct {
 	// SyncChunkSize is the number of blocks to sync on each chunk
 	SyncChunkSize uint64 `mapstructure:"SyncChunkSize"`
 
-	// for x layer
+	// For X Layer
 	LargeTxUsdLimit uint64 `mapstructure:"LargeTxUsdLimit"`
 }

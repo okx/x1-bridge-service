@@ -50,7 +50,7 @@ func local_request_BridgeService_CheckAPI_0(ctx context.Context, marshaler runti
 }
 
 var (
-	filter_BridgeService_GetBridges_0 = &utilities.DoubleArray{Encoding: map[string]int{"dest_addr": 0, "destAddr": 1}, Base: []int{1, 1, 2, 0, 0}, Check: []int{0, 1, 1, 2, 3}}
+	filter_BridgeService_GetBridges_0 = &utilities.DoubleArray{Encoding: map[string]int{"dest_addr": 0}, Base: []int{1, 1, 0}, Check: []int{0, 1, 2}}
 )
 
 func request_BridgeService_GetBridges_0(ctx context.Context, marshaler runtime.Marshaler, client BridgeServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
@@ -156,6 +156,42 @@ func local_request_BridgeService_GetProof_0(ctx context.Context, marshaler runti
 }
 
 var (
+	filter_BridgeService_GetProofByGER_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
+)
+
+func request_BridgeService_GetProofByGER_0(ctx context.Context, marshaler runtime.Marshaler, client BridgeServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq GetProofByGERRequest
+	var metadata runtime.ServerMetadata
+
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_BridgeService_GetProofByGER_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	msg, err := client.GetProofByGER(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+
+}
+
+func local_request_BridgeService_GetProofByGER_0(ctx context.Context, marshaler runtime.Marshaler, server BridgeServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq GetProofByGERRequest
+	var metadata runtime.ServerMetadata
+
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_BridgeService_GetProofByGER_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	msg, err := server.GetProofByGER(ctx, &protoReq)
+	return msg, metadata, err
+
+}
+
+var (
 	filter_BridgeService_GetBridge_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
 )
 
@@ -192,7 +228,7 @@ func local_request_BridgeService_GetBridge_0(ctx context.Context, marshaler runt
 }
 
 var (
-	filter_BridgeService_GetClaims_0 = &utilities.DoubleArray{Encoding: map[string]int{"dest_addr": 0, "destAddr": 1}, Base: []int{1, 1, 2, 0, 0}, Check: []int{0, 1, 1, 2, 3}}
+	filter_BridgeService_GetClaims_0 = &utilities.DoubleArray{Encoding: map[string]int{"dest_addr": 0}, Base: []int{1, 1, 0}, Check: []int{0, 1, 2}}
 )
 
 func request_BridgeService_GetClaims_0(ctx context.Context, marshaler runtime.Marshaler, client BridgeServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
@@ -301,11 +337,7 @@ func request_BridgeService_GetCoinPrice_0(ctx context.Context, marshaler runtime
 	var protoReq GetCoinPriceRequest
 	var metadata runtime.ServerMetadata
 
-	newReader, berr := utilities.IOReaderFactory(req.Body)
-	if berr != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
-	}
-	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq); err != nil && err != io.EOF {
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && err != io.EOF {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -318,11 +350,7 @@ func local_request_BridgeService_GetCoinPrice_0(ctx context.Context, marshaler r
 	var protoReq GetCoinPriceRequest
 	var metadata runtime.ServerMetadata
 
-	newReader, berr := utilities.IOReaderFactory(req.Body)
-	if berr != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
-	}
-	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq); err != nil && err != io.EOF {
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && err != io.EOF {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -384,7 +412,7 @@ func local_request_BridgeService_GetMainCoins_0(ctx context.Context, marshaler r
 }
 
 var (
-	filter_BridgeService_GetPendingTransactions_0 = &utilities.DoubleArray{Encoding: map[string]int{"destAddr": 0}, Base: []int{1, 2, 0, 0}, Check: []int{0, 1, 2, 2}}
+	filter_BridgeService_GetPendingTransactions_0 = &utilities.DoubleArray{Encoding: map[string]int{"destAddr": 0}, Base: []int{1, 1, 0}, Check: []int{0, 1, 2}}
 )
 
 func request_BridgeService_GetPendingTransactions_0(ctx context.Context, marshaler runtime.Marshaler, client BridgeServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
@@ -454,7 +482,7 @@ func local_request_BridgeService_GetPendingTransactions_0(ctx context.Context, m
 }
 
 var (
-	filter_BridgeService_GetAllTransactions_0 = &utilities.DoubleArray{Encoding: map[string]int{"destAddr": 0}, Base: []int{1, 2, 0, 0}, Check: []int{0, 1, 2, 2}}
+	filter_BridgeService_GetAllTransactions_0 = &utilities.DoubleArray{Encoding: map[string]int{"destAddr": 0}, Base: []int{1, 1, 0}, Check: []int{0, 1, 2}}
 )
 
 func request_BridgeService_GetAllTransactions_0(ctx context.Context, marshaler runtime.Marshaler, client BridgeServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
@@ -596,7 +624,7 @@ func local_request_BridgeService_GetNotReadyTransactions_0(ctx context.Context, 
 }
 
 var (
-	filter_BridgeService_GetMonitoredTxsByStatus_0 = &utilities.DoubleArray{Encoding: map[string]int{"status": 0}, Base: []int{1, 2, 0, 0}, Check: []int{0, 1, 2, 2}}
+	filter_BridgeService_GetMonitoredTxsByStatus_0 = &utilities.DoubleArray{Encoding: map[string]int{"status": 0}, Base: []int{1, 1, 0}, Check: []int{0, 1, 2}}
 )
 
 func request_BridgeService_GetMonitoredTxsByStatus_0(ctx context.Context, marshaler runtime.Marshaler, client BridgeServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
@@ -687,11 +715,7 @@ func request_BridgeService_ManualClaim_0(ctx context.Context, marshaler runtime.
 	var protoReq ManualClaimRequest
 	var metadata runtime.ServerMetadata
 
-	newReader, berr := utilities.IOReaderFactory(req.Body)
-	if berr != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
-	}
-	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq); err != nil && err != io.EOF {
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && err != io.EOF {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -704,11 +728,7 @@ func local_request_BridgeService_ManualClaim_0(ctx context.Context, marshaler ru
 	var protoReq ManualClaimRequest
 	var metadata runtime.ServerMetadata
 
-	newReader, berr := utilities.IOReaderFactory(req.Body)
-	if berr != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
-	}
-	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq); err != nil && err != io.EOF {
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && err != io.EOF {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -718,7 +738,7 @@ func local_request_BridgeService_ManualClaim_0(ctx context.Context, marshaler ru
 }
 
 var (
-	filter_BridgeService_GetReadyPendingTransactions_0 = &utilities.DoubleArray{Encoding: map[string]int{"networkId": 0}, Base: []int{1, 2, 0, 0}, Check: []int{0, 1, 2, 2}}
+	filter_BridgeService_GetReadyPendingTransactions_0 = &utilities.DoubleArray{Encoding: map[string]int{"networkId": 0}, Base: []int{1, 1, 0}, Check: []int{0, 1, 2}}
 )
 
 func request_BridgeService_GetReadyPendingTransactions_0(ctx context.Context, marshaler runtime.Marshaler, client BridgeServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
@@ -893,10 +913,47 @@ func local_request_BridgeService_GetWstEthTokenNotWithdrawn_0(ctx context.Contex
 
 }
 
+var (
+	filter_BridgeService_GetPendingBridgesToClaim_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
+)
+
+func request_BridgeService_GetPendingBridgesToClaim_0(ctx context.Context, marshaler runtime.Marshaler, client BridgeServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq GetPendingBridgesRequest
+	var metadata runtime.ServerMetadata
+
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_BridgeService_GetPendingBridgesToClaim_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	msg, err := client.GetPendingBridgesToClaim(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+
+}
+
+func local_request_BridgeService_GetPendingBridgesToClaim_0(ctx context.Context, marshaler runtime.Marshaler, server BridgeServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq GetPendingBridgesRequest
+	var metadata runtime.ServerMetadata
+
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_BridgeService_GetPendingBridgesToClaim_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	msg, err := server.GetPendingBridgesToClaim(ctx, &protoReq)
+	return msg, metadata, err
+
+}
+
 // RegisterBridgeServiceHandlerServer registers the http handlers for service BridgeService to "mux".
 // UnaryRPC     :call BridgeServiceServer directly.
 // StreamingRPC :currently unsupported pending https://github.com/grpc/grpc-go/issues/906.
 // Note that using this registration option will cause many gRPC library features to stop working. Consider using RegisterBridgeServiceHandlerFromEndpoint instead.
+// GRPC interceptors will not work for this type of registration. To use interceptors, you must use the "runtime.WithMiddlewares" option in the "runtime.NewServeMux" call.
 func RegisterBridgeServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux, server BridgeServiceServer) error {
 
 	mux.Handle("GET", pattern_BridgeService_CheckAPI_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
@@ -971,6 +1028,31 @@ func RegisterBridgeServiceHandlerServer(ctx context.Context, mux *runtime.ServeM
 		}
 
 		forward_BridgeService_GetProof_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
+	mux.Handle("GET", pattern_BridgeService_GetProofByGER_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		var stream runtime.ServerTransportStream
+		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		var err error
+		var annotatedContext context.Context
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/bridge.v1.BridgeService/GetProofByGER", runtime.WithHTTPPathPattern("/merkle-proof-by-ger"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := local_request_BridgeService_GetProofByGER_0(annotatedContext, inboundMarshaler, server, req, pathParams)
+		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_BridgeService_GetProofByGER_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -1374,27 +1456,52 @@ func RegisterBridgeServiceHandlerServer(ctx context.Context, mux *runtime.ServeM
 
 	})
 
+	mux.Handle("GET", pattern_BridgeService_GetPendingBridgesToClaim_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		var stream runtime.ServerTransportStream
+		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		var err error
+		var annotatedContext context.Context
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/bridge.v1.BridgeService/GetPendingBridgesToClaim", runtime.WithHTTPPathPattern("/pending-bridges"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := local_request_BridgeService_GetPendingBridgesToClaim_0(annotatedContext, inboundMarshaler, server, req, pathParams)
+		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_BridgeService_GetPendingBridgesToClaim_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
 	return nil
 }
 
 // RegisterBridgeServiceHandlerFromEndpoint is same as RegisterBridgeServiceHandler but
 // automatically dials to "endpoint" and closes the connection when "ctx" gets done.
 func RegisterBridgeServiceHandlerFromEndpoint(ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) (err error) {
-	conn, err := grpc.DialContext(ctx, endpoint, opts...)
+	conn, err := grpc.NewClient(endpoint, opts...)
 	if err != nil {
 		return err
 	}
 	defer func() {
 		if err != nil {
 			if cerr := conn.Close(); cerr != nil {
-				grpclog.Infof("Failed to close conn to %s: %v", endpoint, cerr)
+				grpclog.Errorf("Failed to close conn to %s: %v", endpoint, cerr)
 			}
 			return
 		}
 		go func() {
 			<-ctx.Done()
 			if cerr := conn.Close(); cerr != nil {
-				grpclog.Infof("Failed to close conn to %s: %v", endpoint, cerr)
+				grpclog.Errorf("Failed to close conn to %s: %v", endpoint, cerr)
 			}
 		}()
 	}()
@@ -1412,7 +1519,7 @@ func RegisterBridgeServiceHandler(ctx context.Context, mux *runtime.ServeMux, co
 // to "mux". The handlers forward requests to the grpc endpoint over the given implementation of "BridgeServiceClient".
 // Note: the gRPC framework executes interceptors within the gRPC handler. If the passed in "BridgeServiceClient"
 // doesn't go through the normal gRPC flow (creating a gRPC client etc.) then it will be up to the passed in
-// "BridgeServiceClient" to call the correct interceptors.
+// "BridgeServiceClient" to call the correct interceptors. This client ignores the HTTP middlewares.
 func RegisterBridgeServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux, client BridgeServiceClient) error {
 
 	mux.Handle("GET", pattern_BridgeService_CheckAPI_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
@@ -1478,6 +1585,28 @@ func RegisterBridgeServiceHandlerClient(ctx context.Context, mux *runtime.ServeM
 		}
 
 		forward_BridgeService_GetProof_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
+	mux.Handle("GET", pattern_BridgeService_GetProofByGER_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		var err error
+		var annotatedContext context.Context
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/bridge.v1.BridgeService/GetProofByGER", runtime.WithHTTPPathPattern("/merkle-proof-by-ger"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_BridgeService_GetProofByGER_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_BridgeService_GetProofByGER_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -1833,6 +1962,28 @@ func RegisterBridgeServiceHandlerClient(ctx context.Context, mux *runtime.ServeM
 
 	})
 
+	mux.Handle("GET", pattern_BridgeService_GetPendingBridgesToClaim_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		var err error
+		var annotatedContext context.Context
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/bridge.v1.BridgeService/GetPendingBridgesToClaim", runtime.WithHTTPPathPattern("/pending-bridges"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_BridgeService_GetPendingBridgesToClaim_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_BridgeService_GetPendingBridgesToClaim_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
 	return nil
 }
 
@@ -1842,6 +1993,8 @@ var (
 	pattern_BridgeService_GetBridges_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 1, 0, 4, 1, 5, 1}, []string{"bridges", "dest_addr"}, ""))
 
 	pattern_BridgeService_GetProof_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0}, []string{"merkle-proof"}, ""))
+
+	pattern_BridgeService_GetProofByGER_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0}, []string{"merkle-proof-by-ger"}, ""))
 
 	pattern_BridgeService_GetBridge_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0}, []string{"bridge"}, ""))
 
@@ -1874,6 +2027,8 @@ var (
 	pattern_BridgeService_GetLargeTransactionInfos_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0}, []string{"large-transactions"}, ""))
 
 	pattern_BridgeService_GetWstEthTokenNotWithdrawn_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"wsteth", "token-not-withdrawn"}, ""))
+
+	pattern_BridgeService_GetPendingBridgesToClaim_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0}, []string{"pending-bridges"}, ""))
 )
 
 var (
@@ -1882,6 +2037,8 @@ var (
 	forward_BridgeService_GetBridges_0 = runtime.ForwardResponseMessage
 
 	forward_BridgeService_GetProof_0 = runtime.ForwardResponseMessage
+
+	forward_BridgeService_GetProofByGER_0 = runtime.ForwardResponseMessage
 
 	forward_BridgeService_GetBridge_0 = runtime.ForwardResponseMessage
 
@@ -1914,4 +2071,6 @@ var (
 	forward_BridgeService_GetLargeTransactionInfos_0 = runtime.ForwardResponseMessage
 
 	forward_BridgeService_GetWstEthTokenNotWithdrawn_0 = runtime.ForwardResponseMessage
+
+	forward_BridgeService_GetPendingBridgesToClaim_0 = runtime.ForwardResponseMessage
 )

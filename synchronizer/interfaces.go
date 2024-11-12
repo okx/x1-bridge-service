@@ -16,8 +16,7 @@ type ethermanInterface interface {
 	HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)
 	GetRollupInfoByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]etherman.Block, map[common.Hash][]etherman.Order, error)
 	EthBlockByNumber(ctx context.Context, blockNumber uint64) (*types.Block, error)
-	GetNetworkID(ctx context.Context) (uint, error)
-	GetRollupID() uint
+	GetNetworkID() uint
 }
 
 type storageInterface interface {
@@ -36,9 +35,8 @@ type storageInterface interface {
 	AddTrustedGlobalExitRoot(ctx context.Context, trustedExitRoot *etherman.GlobalExitRoot, dbTx pgx.Tx) (bool, error)
 	GetLatestL1SyncedExitRoot(ctx context.Context, dbTx pgx.Tx) (*etherman.GlobalExitRoot, error)
 	CheckIfRootExists(ctx context.Context, root []byte, network uint8, dbTx pgx.Tx) (bool, error)
-	IsLxLyActivated(ctx context.Context, dbTx pgx.Tx) (bool, error)
 
-	// XLayer
+	// For X Layer
 	GetDeposit(ctx context.Context, depositCounterUser uint, networkID uint, dbTx pgx.Tx) (*etherman.Deposit, error)
 	AddDepositXLayer(ctx context.Context, deposit *etherman.Deposit, dbTx pgx.Tx) (uint64, error)
 	GetBridgeBalance(ctx context.Context, originalTokenAddr common.Address, networkID uint, forUpdate bool, dbTx pgx.Tx) (*big.Int, error)

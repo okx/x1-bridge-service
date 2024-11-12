@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	l2BridgeAddr = "0xCca6ECD73932e49633B9307e1aa0fC174525F424"
+	l2BridgeAddr = "0xFe12ABaa190Ef0c8638Ee0ba9F828BF41368Ca0E"
 
 	l2AccHexAddress    = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
 	l2AccHexPrivateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
@@ -60,7 +60,7 @@ func main() {
 	for i := 0; i < len(proof.MerkleProof); i++ {
 		log.Debug("smtProof: ", proof.MerkleProof[i])
 		smtProof[i] = common.HexToHash(proof.MerkleProof[i])
-		log.Debug("smtRollupProof: ", proof.MerkleProof[i])
+		log.Debug("smtRollupProof: ", proof.RollupMerkleProof[i])
 		smtRollupProof[i] = common.HexToHash(proof.RollupMerkleProof[i])
 	}
 	globalExitRoot := &etherman.GlobalExitRoot{

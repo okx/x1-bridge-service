@@ -30,6 +30,6 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            okx/xlayer-bridge-service:${{ github.ref_name }}
+            hermeznetwork/zkevm-bridge-service:${{ github.ref_name }}
           build-args: |
             PRIVATE_TOKEN=${{secrets.GIT_TOKEN}}

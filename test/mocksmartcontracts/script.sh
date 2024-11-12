@@ -10,6 +10,7 @@ gen() {
     abigen --bin bin/${package}.bin --abi abi/${package}.abi --pkg=${package} --out=${package}/${package}.go
 }
 
+
 compilegen() {
     local package=$1
 
@@ -17,5 +18,7 @@ compilegen() {
     abigen --bin ${package}/${package}.bin --abi ${package}/${package}.abi --pkg=${package} --out=${package}/${package}.go
 }
 
+gen  PingReceiver
 gen polygonzkevmbridge
+gen erc20permitmock
 compilegen BridgeMessageReceiver

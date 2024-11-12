@@ -36,6 +36,7 @@ func TestGetDepositsXLayer(t *testing.T) {
 	_, err = store.Exec(ctx, data)
 	require.NoError(t, err)
 
+	// For X Layer
 	utils.InitRollupNetworkId(1)
 	addr := "0x23335657622dcc27bb1914e51cdc30871d6d04d3"
 

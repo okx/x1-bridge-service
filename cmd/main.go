@@ -15,7 +15,7 @@ const (
 
 const (
 	// App name
-	appName = "xlayer-bridge"
+	appName = "zkevm-bridge"
 )
 
 func main() {

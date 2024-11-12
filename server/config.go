@@ -21,6 +21,8 @@ type Config struct {
 	BridgeVersion string `mapstructure:"BridgeVersion"`
 	// DB is the database config
 	DB db.Config `mapstructure:"DB" apollo:"DB"`
+
+	// For X Layer
 	// Redis is the redis connection config
 	Redis redisstorage.Config `mapstructure:"Redis" apollo:"Redis"`
 	// SentinelConfigFilePath is the file path to store the sentinel config

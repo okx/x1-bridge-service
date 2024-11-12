@@ -9,9 +9,9 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevm"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevmbridge"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethclient/simulated"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -24,7 +24,7 @@ func init() {
 }
 
 // This function prepare the blockchain, the wallet with funds and deploy the smc
-func newTestingEnv() (*Client, *backends.SimulatedBackend, *bind.TransactOpts, common.Address, *polygonzkevmbridge.Polygonzkevmbridge, *polygonzkevm.Polygonzkevm) {
+func newTestingEnv() (*Client, *simulated.Backend, *bind.TransactOpts, common.Address, *polygonzkevmbridge.Polygonzkevmbridge, *polygonzkevm.Polygonzkevm) {
 	privateKey, err := crypto.GenerateKey()
 	if err != nil {
 		log.Fatal(err)
@@ -91,7 +91,7 @@ func TestBridgeEvents(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, DepositsOrder, order[block[0].BlockHash][0].Name)
 	assert.Equal(t, GlobalExitRootsOrder, order[block[0].BlockHash][1].Name)
-	assert.Equal(t, uint64(4), block[0].BlockNumber)
+	assert.Equal(t, uint64(8), block[0].BlockNumber)
 	assert.Equal(t, big.NewInt(9000000000000000000), block[0].Deposits[0].Amount)
 	assert.Equal(t, uint(destNetwork), block[0].Deposits[0].DestinationNetwork)
 	assert.Equal(t, destinationAddr, block[0].Deposits[0].DestinationAddress)
@@ -122,14 +122,14 @@ func TestBridgeEvents(t *testing.T) {
 	assert.Equal(t, TokensOrder, order[block[0].BlockHash][0].Name)
 	assert.Equal(t, ClaimsOrder, order[block[0].BlockHash][1].Name)
 	assert.Equal(t, big.NewInt(1000000000000000000), block[0].Claims[0].Amount)
-	assert.Equal(t, uint64(5), block[0].BlockNumber)
+	assert.Equal(t, uint64(9), block[0].BlockNumber)
 	assert.NotEqual(t, common.Address{}, block[0].Claims[0].OriginalAddress)
 	assert.Equal(t, auth.From, block[0].Claims[0].DestinationAddress)
 	assert.Equal(t, uint(34), block[0].Claims[0].Index)
 	assert.Equal(t, uint64(0), block[0].Claims[0].RollupIndex)
 	assert.Equal(t, true, block[0].Claims[0].MainnetFlag)
 	assert.Equal(t, uint(0), block[0].Claims[0].OriginalNetwork)
-	assert.Equal(t, uint64(5), block[0].Claims[0].BlockNumber)
+	assert.Equal(t, uint64(9), block[0].Claims[0].BlockNumber)
 }
 
 func TestDecodeGlobalIndex(t *testing.T) {
@@ -140,7 +140,7 @@ func TestDecodeGlobalIndex(t *testing.T) {
 	for _, n := range gi {
 		t.Logf("%08b ", n)
 	}
-	mainnetFlag, rollupIndex, localExitRootIndex, err := decodeGlobalIndex(globalIndex)
+	mainnetFlag, rollupIndex, localExitRootIndex, err := DecodeGlobalIndex(globalIndex)
 	require.NoError(t, err)
 	assert.Equal(t, false, mainnetFlag)
 	assert.Equal(t, uint64(1), rollupIndex)
@@ -152,7 +152,7 @@ func TestDecodeGlobalIndex(t *testing.T) {
 	for _, n := range gi {
 		t.Logf("%08b ", n)
 	}
-	mainnetFlag, rollupIndex, localExitRootIndex, err = decodeGlobalIndex(globalIndex)
+	mainnetFlag, rollupIndex, localExitRootIndex, err = DecodeGlobalIndex(globalIndex)
 	require.NoError(t, err)
 	assert.Equal(t, false, mainnetFlag)
 	assert.Equal(t, uint64(2), rollupIndex)
@@ -164,7 +164,7 @@ func TestDecodeGlobalIndex(t *testing.T) {
 	for _, n := range gi {
 		t.Logf("%08b ", n)
 	}
-	mainnetFlag, rollupIndex, localExitRootIndex, err = decodeGlobalIndex(globalIndex)
+	mainnetFlag, rollupIndex, localExitRootIndex, err = DecodeGlobalIndex(globalIndex)
 	require.NoError(t, err)
 	assert.Equal(t, true, mainnetFlag)
 	assert.Equal(t, uint64(0), rollupIndex)
@@ -176,7 +176,7 @@ func TestDecodeGlobalIndex(t *testing.T) {
 	for _, n := range gi {
 		t.Logf("%08b ", n)
 	}
-	mainnetFlag, rollupIndex, localExitRootIndex, err = decodeGlobalIndex(globalIndex)
+	mainnetFlag, rollupIndex, localExitRootIndex, err = DecodeGlobalIndex(globalIndex)
 	require.NoError(t, err)
 	assert.Equal(t, true, mainnetFlag)
 	assert.Equal(t, uint64(0), rollupIndex)
@@ -200,7 +200,11 @@ func TestVerifyBatchEvent(t *testing.T) {
 		ForcedTimestamp:      0,
 		Transactions:         common.Hex2Bytes(rawTxs),
 	}
-	_, err = zkevm.SequenceBatches(auth, []polygonzkevm.PolygonRollupBaseEtrogBatchData{tx}, auth.From)
+	var (
+		maxSequenceTimestamp uint64 = 1
+		initSequencedBatch   uint64 = 1
+	)
+	_, err = zkevm.SequenceBatches(auth, []polygonzkevm.PolygonRollupBaseEtrogBatchData{tx}, maxSequenceTimestamp, initSequencedBatch, auth.From)
 	require.NoError(t, err)
 
 	// Mine the tx in a block
@@ -219,7 +223,7 @@ func TestVerifyBatchEvent(t *testing.T) {
 	blocks, order, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
 	require.NoError(t, err)
 	t.Logf("Blocks: %+v, \nOrder: %+v", blocks, order)
-	assert.Equal(t, uint64(5), blocks[0].BlockNumber)
+	assert.Equal(t, uint64(9), blocks[0].BlockNumber)
 	assert.Equal(t, uint64(1), blocks[0].VerifiedBatches[0].BatchNumber)
 	assert.NotEqual(t, common.Address{}, blocks[0].VerifiedBatches[0].Aggregator)
 	assert.NotEqual(t, common.Hash{}, blocks[0].VerifiedBatches[0].TxHash)

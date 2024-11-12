@@ -2,13 +2,12 @@ package claimtxman
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math/big"
-	"strings"
 	"sync"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-bridge-service/claimtxman/types"
 	ctmtypes "github.com/0xPolygonHermez/zkevm-bridge-service/claimtxman/types"
 	"github.com/0xPolygonHermez/zkevm-bridge-service/config/apolloconfig"
 	"github.com/0xPolygonHermez/zkevm-bridge-service/etherman"
@@ -20,8 +19,6 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-	lru "github.com/hashicorp/golang-lru/v2"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -29,7 +26,6 @@ const (
 	maxHistorySize  = 10
 	keyLen          = 32
 	mtHeight        = 32
-	cacheSize       = 1000
 	LeafTypeMessage = uint8(1)
 )
 
@@ -45,13 +41,12 @@ type ClaimTxManager struct {
 	cfg             Config
 	chExitRootEvent chan *etherman.GlobalExitRoot
 	chSynced        chan uint
-	storage         storageInterface
+	storage         StorageInterface
 	auth            *bind.TransactOpts
 	rollupID        uint
-	nonceCache      *lru.Cache[string, uint64]
 	synced          bool
 
-	// XLayer
+	// For X Layer
 	updateDepositsL1Mutex sync.Mutex
 	updateDepositsL2Mutex sync.Mutex
 	isDone                bool
@@ -59,36 +54,55 @@ type ClaimTxManager struct {
 	messagePushProducer messagepush.KafkaProducer
 	redisStorage        redisstorage.RedisStorage
 	monitorTxsLimit     apolloconfig.Entry[uint]
+
+	nonceCache *NonceCache
+	monitorTxs types.TxMonitorer
 }
 
 // NewClaimTxManager creates a new claim transaction manager.
-func NewClaimTxManager(cfg Config, chExitRootEvent chan *etherman.GlobalExitRoot, chSynced chan uint, l2NodeURL string, l2NetworkID uint,
-	l2BridgeAddr common.Address, bridgeService bridgeServiceInterface, storage interface{}, producer messagepush.KafkaProducer,
-	redisStorage redisstorage.RedisStorage, rollupID uint) (*ClaimTxManager, error) {
-	ctx := context.Background()
+func NewClaimTxManager(ctx context.Context, cfg Config, chExitRootEvent chan *etherman.GlobalExitRoot,
+	chSynced chan uint,
+	l2NodeURL string,
+	l2NetworkID uint,
+	l2BridgeAddr common.Address,
+	bridgeService bridgeServiceInterface,
+	storage interface{},
+	rollupID uint,
+	etherMan EthermanI,
+	nonceCache *NonceCache,
+	auth *bind.TransactOpts,
+	producer messagepush.KafkaProducer,
+	redisStorage redisstorage.RedisStorage) (*ClaimTxManager, error) {
 	client, err := utils.NewClient(ctx, l2NodeURL, l2BridgeAddr)
 	if err != nil {
 		return nil, err
 	}
-	cache, err := lru.New[string, uint64](int(cacheSize))
-	if err != nil {
-		return nil, err
-	}
 	ctx, cancel := context.WithCancel(ctx)
-	auth, err := client.GetSignerFromKeystore(ctx, cfg.PrivateKey)
+
+	var monitorTx ctmtypes.TxMonitorer
+	if cfg.GroupingClaims.Enabled {
+		log.Info("ClaimTxManager working in compressor mode to group claim txs")
+		monitorTx = NewMonitorCompressedTxs(ctx, storage.(StorageCompressedInterface), client, cfg, nonceCache, auth, etherMan, utils.NewTimeProviderSystemLocalTime(), cfg.GroupingClaims.GasOffset, rollupID)
+	} else {
+		log.Info("ClaimTxManager working in regular mode to send claim txs individually")
+		monitorTx = NewMonitorTxs(ctx, storage.(StorageInterface), client, cfg, nonceCache, rollupID, auth)
+	}
 	return &ClaimTxManager{
-		ctx:                 ctx,
-		cancel:              cancel,
-		l2Node:              client,
-		l2NetworkID:         l2NetworkID,
-		bridgeService:       bridgeService,
-		cfg:                 cfg,
-		chExitRootEvent:     chExitRootEvent,
-		chSynced:            chSynced,
-		storage:             storage.(storageInterface),
-		auth:                auth,
-		rollupID:            rollupID,
-		nonceCache:          cache,
+		ctx:             ctx,
+		cancel:          cancel,
+		l2Node:          client,
+		l2NetworkID:     l2NetworkID,
+		bridgeService:   bridgeService,
+		cfg:             cfg,
+		chExitRootEvent: chExitRootEvent,
+		chSynced:        chSynced,
+		storage:         storage.(StorageInterface),
+		auth:            auth,
+		rollupID:        rollupID,
+		nonceCache:      nonceCache,
+		monitorTxs:      monitorTx,
+
+		// For X Layer
 		messagePushProducer: producer,
 		redisStorage:        redisStorage,
 		monitorTxsLimit:     apolloconfig.NewIntEntry("claimtxman.monitorTxsLimit", uint(128)), //nolint:gomnd
@@ -100,31 +114,50 @@ func NewClaimTxManager(cfg Config, chExitRootEvent chan *etherman.GlobalExitRoot
 // get mined
 func (tm *ClaimTxManager) Start() {
 	ticker := time.NewTicker(tm.cfg.FrequencyToMonitorTxs.Duration)
+	compressorTicker := time.NewTicker(tm.cfg.GroupingClaims.FrequencyToProcessCompressedClaims.Duration)
+	var ger = &etherman.GlobalExitRoot{}
+	var latestProcessedGer common.Hash
 	for {
 		select {
 		case <-tm.ctx.Done():
+			ticker.Stop()
 			return
 		case netID := <-tm.chSynced:
 			if netID == tm.l2NetworkID && !tm.synced {
 				log.Info("NetworkID synced: ", netID)
 				tm.synced = true
 			}
-		case ger := <-tm.chExitRootEvent:
+		case ger = <-tm.chExitRootEvent:
 			if tm.synced {
-				log.Debug("UpdateDepositsStatus for ger: ", ger.GlobalExitRoot)
+				log.Debugf("RollupID: %d UpdateDepositsStatus for ger: %s", tm.rollupID, ger.GlobalExitRoot.String())
+				if tm.cfg.GroupingClaims.Enabled {
+					log.Debugf("rollupID: %d, Ger value updated and ready to be processed...", tm.rollupID)
+					continue
+				}
 				go func() {
 					err := tm.updateDepositsStatus(ger)
 					if err != nil {
-						log.Errorf("failed to update deposits status: %v", err)
+						log.Errorf("rollupID: %d, failed to update deposits status: %v", tm.rollupID, err)
 					}
 				}()
 			} else {
 				log.Infof("Waiting for networkID %d to be synced before processing deposits", tm.l2NetworkID)
 			}
+		case <-compressorTicker.C:
+			if tm.synced && tm.cfg.GroupingClaims.Enabled && ger.GlobalExitRoot != latestProcessedGer {
+				log.Infof("RollupID: %d,Processing deposits for ger: %s", tm.rollupID, ger.GlobalExitRoot.String())
+				go func() {
+					err := tm.updateDepositsStatus(ger)
+					if err != nil {
+						log.Errorf("rollupID: %d, failed to update deposits status: %v", tm.rollupID, err)
+					}
+				}()
+				latestProcessedGer = ger.GlobalExitRoot
+			}
 		case <-ticker.C:
-			err := tm.monitorTxs(tm.ctx)
+			err := tm.monitorTxs.MonitorTxs(tm.ctx)
 			if err != nil {
-				log.Errorf("failed to monitor txs: %v", err)
+				log.Errorf("rollupID: %d, failed to monitor txs: %v", tm.rollupID, err)
 			}
 		}
 	}
@@ -137,61 +170,61 @@ func (tm *ClaimTxManager) updateDepositsStatus(ger *etherman.GlobalExitRoot) err
 	}
 	err = tm.processDepositStatus(ger, dbTx)
 	if err != nil {
-		log.Errorf("error processing ger. Error: %v", err)
+		log.Errorf("rollupID: %d, error processing ger. Error: %v", tm.rollupID, err)
 		rollbackErr := tm.storage.Rollback(tm.ctx, dbTx)
 		if rollbackErr != nil {
-			log.Errorf("claimtxman error rolling back state. RollbackErr: %v, err: %s", rollbackErr, err.Error())
+			log.Errorf("rollupID: %d, claimtxman error rolling back state. RollbackErr: %v, err: %s", tm.rollupID, rollbackErr, err.Error())
 			return rollbackErr
 		}
 		return err
 	}
 	err = tm.storage.Commit(tm.ctx, dbTx)
 	if err != nil {
-		log.Errorf("AddClaimTx committing dbTx. Err: %v", err)
+		log.Errorf("rollupID: %d, AddClaimTx committing dbTx. Err: %v", tm.rollupID, err)
 		rollbackErr := tm.storage.Rollback(tm.ctx, dbTx)
 		if rollbackErr != nil {
-			log.Fatalf("claimtxman error rolling back state. RollbackErr: %s, err: %s", rollbackErr.Error(), err.Error())
+			log.Errorf("rollupID: %d, claimtxman error rolling back state. RollbackErr: %s, err: %s", tm.rollupID, rollbackErr.Error(), err.Error())
+			return rollbackErr
 		}
-		log.Fatalf("AddClaimTx committing dbTx, err: %s", err.Error())
+		return err
 	}
-
 	return nil
 }
 
 func (tm *ClaimTxManager) processDepositStatus(ger *etherman.GlobalExitRoot, dbTx pgx.Tx) error {
 	if ger.BlockID != 0 { // L2 exit root is updated
-		log.Infof("Rollup exitroot %v is updated", ger.ExitRoots[1])
+		log.Infof("RollupID: %d, Rollup exitroot %v is updated", tm.rollupID, ger.ExitRoots[1])
 		if err := tm.storage.UpdateL2DepositsStatus(tm.ctx, ger.ExitRoots[1][:], tm.rollupID, tm.l2NetworkID, dbTx); err != nil {
-			log.Errorf("error updating L2DepositsStatus. Error: %v", err)
+			log.Errorf("rollupID: %d, error updating L2DepositsStatus. Error: %v", tm.rollupID, err)
 			return err
 		}
 	} else { // L1 exit root is updated in the trusted state
-		log.Infof("Mainnet exitroot %v is updated", ger.ExitRoots[0])
-		deposits, err := tm.storage.UpdateL1DepositsStatus(tm.ctx, ger.ExitRoots[0][:], dbTx)
+		log.Infof("RollupID: %d, Mainnet exitroot %v is updated", tm.rollupID, ger.ExitRoots[0])
+		deposits, err := tm.storage.UpdateL1DepositsStatus(tm.ctx, ger.ExitRoots[0][:], tm.l2NetworkID, dbTx)
 		if err != nil {
-			log.Errorf("error getting and updating L1DepositsStatus. Error: %v", err)
+			log.Errorf("rollupID: %d, error getting and updating L1DepositsStatus. Error: %v", tm.rollupID, err)
 			return err
 		}
 		for _, deposit := range deposits {
 			if tm.l2NetworkID != deposit.DestinationNetwork {
-				log.Infof("Ignoring deposit: %d: dest_net: %d, we are:%d", deposit.DepositCount, deposit.DestinationNetwork, tm.l2NetworkID)
+				log.Infof("Ignoring deposit id: %d deposit count:%d dest_net: %d, we are:%d", deposit.Id, deposit.DepositCount, deposit.DestinationNetwork, tm.l2NetworkID)
 				continue
 			}
 
-			claimHash, err := tm.bridgeService.GetDepositStatus(tm.ctx, deposit.DepositCount, deposit.DestinationNetwork)
+			claimHash, err := tm.bridgeService.GetDepositStatus(tm.ctx, deposit.DepositCount, deposit.NetworkID, deposit.DestinationNetwork)
 			if err != nil {
-				log.Errorf("error getting deposit status for deposit %d. Error: %v", deposit.DepositCount, err)
+				log.Errorf("rollupID: %d, error getting deposit status for deposit id %d. Error: %v", tm.rollupID, deposit.Id, err)
 				return err
 			}
 			if len(claimHash) > 0 || deposit.LeafType == LeafTypeMessage && !tm.isDepositMessageAllowed(deposit) {
-				log.Infof("Ignoring deposit: %d, leafType: %d, claimHash: %s, deposit.OriginalAddress: %s", deposit.DepositCount, deposit.LeafType, claimHash, deposit.OriginalAddress.String())
+				log.Infof("RollupID: %d, Ignoring deposit Id: %d, leafType: %d, claimHash: %s, deposit.OriginalAddress: %s", tm.rollupID, deposit.Id, deposit.LeafType, claimHash, deposit.OriginalAddress.String())
 				continue
 			}
 
-			log.Infof("create the claim tx for the deposit %d", deposit.DepositCount)
-			ger, proof, rollupProof, err := tm.bridgeService.GetClaimProof(deposit.DepositCount, deposit.NetworkID, dbTx)
+			log.Infof("RollupID: %d, create the claim tx for the deposit count %d. Deposit Id: %d", tm.rollupID, deposit.DepositCount, deposit.Id)
+			ger, proof, rollupProof, err := tm.bridgeService.GetClaimProofForCompressed(ger.GlobalExitRoot, deposit.DepositCount, deposit.NetworkID, dbTx)
 			if err != nil {
-				log.Errorf("error getting Claim Proof for deposit %d. Error: %v", deposit.DepositCount, err)
+				log.Errorf("rollupID: %d, error getting Claim Proof for deposit Id %d. Error: %v", tm.rollupID, deposit.Id, err)
 				return err
 			}
 			var (
@@ -210,11 +243,11 @@ func (tm *ClaimTxManager) processDepositStatus(ger *etherman.GlobalExitRoot, dbT
 					}}, 1, 1, 1, tm.rollupID,
 				tm.auth)
 			if err != nil {
-				log.Errorf("error BuildSendClaim tx for deposit %d. Error: %v", deposit.DepositCount, err)
+				log.Errorf("rollupID: %d, error BuildSendClaim tx for deposit Id: %d. Error: %v", tm.rollupID, deposit.Id, err)
 				return err
 			}
-			if err = tm.addClaimTx(deposit.DepositCount, tm.auth.From, tx.To(), nil, tx.Data(), dbTx); err != nil {
-				log.Errorf("error adding claim tx for deposit %d. Error: %v", deposit.DepositCount, err)
+			if err = tm.addClaimTx(deposit.Id, tm.auth.From, tx.To(), nil, tx.Data(), ger.GlobalExitRoot, dbTx); err != nil {
+				log.Errorf("rollupID: %d, error adding claim tx for deposit Id: %d Error: %v", tm.rollupID, deposit.Id, err)
 				return err
 			}
 		}
@@ -225,29 +258,15 @@ func (tm *ClaimTxManager) processDepositStatus(ger *etherman.GlobalExitRoot, dbT
 func (tm *ClaimTxManager) isDepositMessageAllowed(deposit *etherman.Deposit) bool {
 	for _, addr := range tm.cfg.AuthorizedClaimMessageAddresses {
 		if deposit.OriginalAddress == addr {
-			log.Infof("MessageBridge from authorized account detected: %+v, account: %s", deposit, addr.String())
+			log.Infof("RollupID: %d, MessageBridge from authorized account detected: %+v, account: %s", tm.rollupID, deposit, addr.String())
 			return true
 		}
 	}
-	log.Infof("MessageBridge Not authorized. DepositCount: %d", deposit.DepositCount)
+	log.Infof("RollupID: %d, MessageBridge Not authorized. DepositCount: %d. DepositID: %d", tm.rollupID, deposit.DepositCount, deposit.Id)
 	return false
 }
 
-func (tm *ClaimTxManager) getNextNonce(from common.Address) (uint64, error) {
-	nonce, err := tm.l2Node.NonceAt(tm.ctx, from, nil)
-	if err != nil {
-		return 0, err
-	}
-	if tempNonce, found := tm.nonceCache.Get(from.Hex()); found {
-		if tempNonce >= nonce {
-			nonce = tempNonce + 1
-		}
-	}
-	tm.nonceCache.Add(from.Hex(), nonce)
-	return nonce, nil
-}
-
-func (tm *ClaimTxManager) addClaimTx(depositCount uint, from common.Address, to *common.Address, value *big.Int, data []byte, dbTx pgx.Tx) error {
+func (tm *ClaimTxManager) addClaimTx(depositID uint64, from common.Address, to *common.Address, value *big.Int, data []byte, ger common.Hash, dbTx pgx.Tx) error {
 	// get gas
 	tx := ethereum.CallMsg{
 		From:  from,
@@ -255,247 +274,59 @@ func (tm *ClaimTxManager) addClaimTx(depositCount uint, from common.Address, to 
 		Value: value,
 		Data:  data,
 	}
-	log.Debugf("addClaimTx deposit: %d", depositCount)
+	log.Debugf("addClaimTx deposit ID: %d", depositID)
 	gas, err := tm.l2Node.EstimateGas(tm.ctx, tx)
 	for i := 1; err != nil && err.Error() != runtime.ErrExecutionReverted.Error() && i < tm.cfg.RetryNumber; i++ {
-		log.Warnf("error while doing gas estimation. Retrying... Error: %v, Data: %s", err, common.Bytes2Hex(data))
+		log.Warnf("rollupID: %d, error while doing gas estimation. Retrying... Error: %v, Data: %s", tm.rollupID, err, common.Bytes2Hex(data))
 		time.Sleep(tm.cfg.RetryInterval.Duration)
 		gas, err = tm.l2Node.EstimateGas(tm.ctx, tx)
 	}
 	if err != nil {
-		log.Errorf("failed to estimate gas. Ignoring tx... Error: %v, data: %s", err, common.Bytes2Hex(data))
+		var b string
+		block, err2 := tm.l2Node.Client.BlockByNumber(tm.ctx, nil)
+		if err2 != nil {
+			log.Error("error getting blockNumber. Error: ", err2)
+			b = "latest"
+		} else {
+			b = fmt.Sprintf("%x", block.Number())
+		}
+		log.Warnf(`Use the next command to debug it manually.
+		curl --location --request POST 'http://localhost:8545' \
+		--header 'Content-Type: application/json' \
+		--data-raw '{
+			"jsonrpc": "2.0",
+			"method": "eth_call",
+			"params": [{"from": "%s","to":"%s","data":"0x%s"},"0x%s"],
+			"id": 1
+		}'`, from, to, common.Bytes2Hex(data), b)
+		log.Errorf("rollupID: %d, failed to estimate gas. Ignoring tx... Error: %v, data: %s, GER: %s", tm.rollupID, err, common.Bytes2Hex(data), ger.String())
 		return nil
 	}
 	// get next nonce
-	nonce, err := tm.getNextNonce(from)
+	nonce, err := tm.nonceCache.GetNextNonce(from)
 	if err != nil {
-		err := fmt.Errorf("failed to get current nonce: %v", err)
+		err := fmt.Errorf("rollupID: %d, failed to get current nonce: %v", tm.rollupID, err)
 		log.Errorf("error getting next nonce. Error: %s", err.Error())
 		return err
 	}
 
 	// create monitored tx
 	mTx := ctmtypes.MonitoredTx{
-		DepositID: depositCount, From: from, To: to,
+		DepositID: depositID, From: from, To: to,
 		Nonce: nonce, Value: value, Data: data,
 		Gas: gas, Status: ctmtypes.MonitoredTxStatusCreated,
+		GlobalExitRoot: ger,
 	}
 
 	// add to storage
 	err = tm.storage.AddClaimTx(tm.ctx, mTx, dbTx)
 	if err != nil {
-		err := fmt.Errorf("failed to add tx to get monitored: %v", err)
+		err := fmt.Errorf("rollupID: %d, failed to add tx to get monitored: %v", tm.rollupID, err)
 		log.Errorf("error adding claim tx to db. Error: %s", err.Error())
 		return err
 	}
-	log.Debugf("addClaimTx successfully depositCount: %d", depositCount)
+	log.Debugf("addClaimTx successfully depositID: %d", depositID)
 
-	return nil
-}
-
-// monitorTxs process all pending monitored tx
-func (tm *ClaimTxManager) monitorTxs(ctx context.Context) error {
-	dbTx, err := tm.storage.BeginDBTransaction(tm.ctx)
-	if err != nil {
-		return err
-	}
-
-	statusesFilter := []ctmtypes.MonitoredTxStatus{ctmtypes.MonitoredTxStatusCreated}
-	mTxs, err := tm.storage.GetClaimTxsByStatus(ctx, statusesFilter, dbTx)
-	if err != nil {
-		log.Errorf("failed to get created monitored txs: %v", err)
-		rollbackErr := tm.storage.Rollback(tm.ctx, dbTx)
-		if rollbackErr != nil {
-			log.Errorf("claimtxman error rolling back state. RollbackErr: %s, err: %v", rollbackErr.Error(), err)
-			return rollbackErr
-		}
-		return fmt.Errorf("failed to get created monitored txs: %v", err)
-	}
-
-	isResetNonce := false // it will reset the nonce in one cycle
-	log.Infof("found %v monitored tx to process", len(mTxs))
-	for _, mTx := range mTxs {
-		mTx := mTx // force variable shadowing to avoid pointer conflicts
-		mTxLog := log.WithFields("monitoredTx", mTx.DepositID)
-		mTxLog.Infof("processing tx with nonce %d", mTx.Nonce)
-
-		// check if any of the txs in the history was mined
-		mined := false
-		var receipt *types.Receipt
-		hasFailedReceipts := false
-		allHistoryTxMined := true
-		receiptSuccessful := false
-
-		for txHash := range mTx.History {
-			mTxLog.Infof("Checking if tx %s is mined", txHash.String())
-			mined, receipt, err = tm.l2Node.CheckTxWasMined(ctx, txHash)
-			if err != nil {
-				mTxLog.Errorf("failed to check if tx %s was mined: %v", txHash.String(), err)
-				continue
-			}
-
-			// if the tx is not mined yet, check that not all the tx were mined and go to the next
-			if !mined {
-				// check if the tx is in the pending pool
-				_, _, err = tm.l2Node.TransactionByHash(ctx, txHash)
-				if err != nil {
-					mTxLog.Errorf("error getting txByHash %s. Error: %v", txHash.String(), err)
-					// Retry if the tx has not appeared in the pool yet.
-					for i := 0; i < tm.cfg.RetryNumber && err != nil; i++ {
-						mTxLog.Warn("waiting and retrying to find the tx in the pool. TxHash: %s. Error: %v", txHash.String(), err)
-						time.Sleep(tm.cfg.RetryInterval.Duration)
-						_, _, err = tm.l2Node.TransactionByHash(ctx, txHash)
-					}
-					if errors.Is(err, ethereum.NotFound) {
-						mTxLog.Error("maximum retries and the tx is still missing in the pool. TxHash: ", txHash.String())
-						hasFailedReceipts = true
-						continue
-					} else if err != nil {
-						mTxLog.Errorf("failed to retry to get tx %s: %v", txHash.String(), err)
-						continue
-					}
-				}
-				log.Infof("tx: %s not mined yet", txHash.String())
-
-				allHistoryTxMined = false
-				continue
-			}
-
-			// if the tx was mined successfully we can break the loop and proceed
-			if receipt.Status == types.ReceiptStatusSuccessful {
-				mTxLog.Infof("tx %s was mined successfully", txHash.String())
-				receiptSuccessful = true
-				mTx.Status = ctmtypes.MonitoredTxStatusConfirmed
-				// update monitored tx changes into storage
-				err = tm.storage.UpdateClaimTx(ctx, mTx, dbTx)
-				if err != nil {
-					mTxLog.Errorf("failed to update monitored tx when confirmed: %v", err)
-				}
-				break
-			}
-
-			// if the tx was mined but failed, we continue to consider it was not mined
-			// and store the failed receipt to be used to check if nonce needs to be reviewed
-			mined = false
-			hasFailedReceipts = true
-		}
-
-		if receiptSuccessful {
-			continue
-		}
-
-		// if the history size reaches the max history size, this means something is really wrong with
-		// this Tx and we are not able to identify automatically, so we mark this as failed to let the
-		// caller know something is not right and needs to be review and to avoid to monitor this
-		// tx infinitely
-		if allHistoryTxMined && len(mTx.History) >= maxHistorySize {
-			mTx.Status = ctmtypes.MonitoredTxStatusFailed
-			mTxLog.Infof("marked as failed because reached the history size limit (%d)", maxHistorySize)
-			// update monitored tx changes into storage
-			err = tm.storage.UpdateClaimTx(ctx, mTx, dbTx)
-			if err != nil {
-				mTxLog.Errorf("failed to update monitored tx when max history size limit reached: %v", err)
-			}
-			continue
-		}
-
-		// if we have failed receipts, this means at least one of the generated txs was mined
-		// so maybe the current nonce was already consumed, then we need to check if there are
-		// tx that were not mined yet, if so, we just need to wait, because maybe one of them
-		// will get mined successfully
-		if allHistoryTxMined {
-			// in case of all tx were mined and none of them were mined successfully, we need to
-			// review the tx information
-			if hasFailedReceipts {
-				mTxLog.Infof("monitored tx needs to be updated")
-				err := tm.ReviewMonitoredTx(ctx, &mTx, true)
-				if err != nil {
-					mTxLog.Errorf("failed to review monitored tx: %v", err)
-					continue
-				}
-			}
-
-			// GasPrice is set here to use always the proper and most accurate value right before sending it to L2
-			gasPrice, err := tm.l2Node.SuggestGasPrice(ctx)
-			if err != nil {
-				mTxLog.Errorf("failed to get suggested gasPrice. Error: %v", err)
-				continue
-			}
-			//Multiply gasPrice by 10 to increase the efficiency of the tx in the sequence
-			mTx.GasPrice = big.NewInt(0).Mul(gasPrice, big.NewInt(10)) //nolint:gomnd
-			log.Infof("Using gasPrice: %s. The gasPrice suggested by the network is %s", mTx.GasPrice.String(), gasPrice.String())
-
-			// rebuild transaction
-			tx := mTx.Tx()
-			mTxLog.Debugf("unsigned tx created for monitored tx")
-
-			var signedTx *types.Transaction
-			// sign tx
-			signedTx, err = tm.auth.Signer(mTx.From, tx)
-			if err != nil {
-				mTxLog.Errorf("failed to sign tx %v created from monitored tx: %v", tx.Hash().String(), err)
-				continue
-			}
-			mTxLog.Debugf("signed tx %v created using gasPrice: %s", signedTx.Hash().String(), signedTx.GasPrice().String())
-
-			// add tx to monitored tx history
-			err = mTx.AddHistory(signedTx)
-			if errors.Is(err, ctmtypes.ErrAlreadyExists) {
-				mTxLog.Infof("signed tx already existed in the history")
-			} else if err != nil {
-				mTxLog.Errorf("failed to add signed tx to monitored tx history: %v", err)
-				continue
-			}
-
-			// check if the tx is already in the network, if not, send it
-			_, _, err = tm.l2Node.TransactionByHash(ctx, signedTx.Hash())
-			if errors.Is(err, ethereum.NotFound) {
-				err := tm.l2Node.SendTransaction(ctx, signedTx)
-				if err != nil {
-					mTxLog.Errorf("failed to send tx %s to network: %v", signedTx.Hash().String(), err)
-					var reviewNonce bool
-					if strings.Contains(err.Error(), "nonce") {
-						mTxLog.Infof("nonce error detected, Nonce used: %d", signedTx.Nonce())
-						if !isResetNonce {
-							isResetNonce = true
-							tm.nonceCache.Remove(mTx.From.Hex())
-							mTxLog.Infof("nonce cache cleared for address %v", mTx.From.Hex())
-						}
-						reviewNonce = true
-					}
-					mTx.RemoveHistory(signedTx)
-					// we should rebuild the monitored tx to fix the nonce
-					err := tm.ReviewMonitoredTx(ctx, &mTx, reviewNonce)
-					if err != nil {
-						mTxLog.Errorf("failed to review monitored tx: %v", err)
-					}
-				}
-			} else if err != nil && !errors.Is(err, ethereum.NotFound) {
-				mTxLog.Error("unexpected error getting TransactionByHash. Error: ", err)
-			} else {
-				mTxLog.Infof("signed tx %v already found in the network for the monitored tx.", signedTx.Hash().String())
-			}
-
-			// update monitored tx changes into storage
-			err = tm.storage.UpdateClaimTx(ctx, mTx, dbTx)
-			if err != nil {
-				mTxLog.Errorf("failed to update monitored tx: %v", err)
-				continue
-			}
-			mTxLog.Infof("signed tx %s added to the monitored tx history", signedTx.Hash().String())
-		}
-	}
-
-	err = tm.storage.Commit(tm.ctx, dbTx)
-	if err != nil {
-		log.Errorf("UpdateClaimTx committing dbTx, err: %v", err)
-		rollbackErr := tm.storage.Rollback(tm.ctx, dbTx)
-		if rollbackErr != nil {
-			log.Errorf("claimtxman error rolling back state. RollbackErr: %s, err: %v", rollbackErr.Error(), err)
-			return rollbackErr
-		}
-		return err
-	}
 	return nil
 }
 
@@ -503,7 +334,7 @@ func (tm *ClaimTxManager) monitorTxs(ctx context.Context) error {
 // accordingly to the current information stored and the current
 // state of the blockchain
 func (tm *ClaimTxManager) ReviewMonitoredTx(ctx context.Context, mTx *ctmtypes.MonitoredTx, reviewNonce bool) error {
-	mTxLog := log.WithFields("monitoredTx", mTx.DepositID)
+	mTxLog := log.WithFields("monitoredTx", mTx.DepositID, "rollupID", tm.rollupID)
 	mTxLog.Debug("reviewing")
 	// get gas
 	tx := ethereum.CallMsg{
@@ -532,12 +363,14 @@ func (tm *ClaimTxManager) ReviewMonitoredTx(ctx context.Context, mTx *ctmtypes.M
 
 	if reviewNonce {
 		// check nonce
-		nonce, err := tm.getNextNonce(mTx.From)
+		nonce, err := tm.nonceCache.GetNextNonce(mTx.From)
 		if err != nil {
 			err := fmt.Errorf("failed to get nonce: %v", err)
 			mTxLog.Errorf(err.Error())
 			return err
 		}
+
+		// For X Layer
 		mTxLog.Infof("monitored tx nonce from %v to %v", mTx.Nonce, nonce)
 		if nonce != mTx.Nonce {
 			mTxLog.Infof("monitored tx nonce updated from %v to %v", mTx.Nonce, nonce)

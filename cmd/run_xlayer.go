@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"os/signal"
 
@@ -105,20 +106,12 @@ func startServer(ctx *cli.Context, opts ...runOptionFunc) error {
 		return err
 	}
 
-	networkID, err := l1Etherman.GetNetworkID(ctx.Context)
+	networkID := l1Etherman.GetNetworkID()
 	log.Infof("main network id: %d", networkID)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
 
 	var networkIDs = []uint{networkID}
 	for _, cl := range l2Ethermans {
-		networkID, err := cl.GetNetworkID(ctx.Context)
-		if err != nil {
-			log.Error(err)
-			return err
-		}
+		networkID := cl.GetNetworkID()
 		log.Infof("l2 network id: %d", networkID)
 		networkIDs = append(networkIDs, networkID)
 		utils.InitRollupNetworkId(networkID)
@@ -208,8 +201,7 @@ func startServer(ctx *cli.Context, opts ...runOptionFunc) error {
 	// Initialize chainId manager
 	utils.InitChainIdManager(networkIDs, chainIDs)
 
-	rollupID := l1Etherman.GetRollupID()
-	bridgeService := server.NewBridgeService(c.BridgeServer, c.BridgeController.Height, networkIDs, l2NodeClients, l2Auths, apiStorage, rollupID).
+	bridgeService := server.NewBridgeService(c.BridgeServer, c.BridgeController.Height, networkIDs, apiStorage, l2NodeClients, l2Auths).
 		WithRedisStorage(redisStorage).WithMainCoinsCache(localcache.GetDefaultCache()).WithMessagePushProducer(messagePushProducer)
 
 	// Initialize inner chain id conf
@@ -240,6 +232,7 @@ func startServer(ctx *cli.Context, opts ...runOptionFunc) error {
 
 	// ---------- Run push tasks ----------
 	if opt.runPushTasks {
+		rollupID := l2Ethermans[0].GetNetworkID()
 		// Initialize the push task for L1 block num change
 		l1BlockNumTask, err := pushtask.NewL1BlockNumTask(c.Etherman.L1URL, apiStorage, redisStorage, messagePushProducer, rollupID)
 		if err != nil {
@@ -267,20 +260,49 @@ func startServer(ctx *cli.Context, opts ...runOptionFunc) error {
 
 	// ---------- Run synchronizer tasks ----------
 	if opt.runTasks {
-		log.Debug("trusted sequencer URL ", c.Etherman.L2URLs[0])
-		zkEVMClient := client.NewClient(c.Etherman.L2URLs[0])
-		chExitRootEvent := make(chan *etherman.GlobalExitRoot)
-		chSynced := make(chan uint)
-		go runSynchronizer(ctx.Context, c.NetworkConfig.GenBlockNumber, bridgeController, l1Etherman, c.Synchronizer, storage, zkEVMClient, chExitRootEvent, chSynced, messagePushProducer, redisStorage)
-		for _, cl := range l2Ethermans {
-			go runSynchronizer(ctx.Context, 0, bridgeController, cl, c.Synchronizer, storage, zkEVMClient, chExitRootEvent, chSynced, messagePushProducer, redisStorage)
+		var chsExitRootEvent []chan *etherman.GlobalExitRoot
+		var chsSyncedL2 []chan uint
+		for i, l2EthermanClient := range l2Ethermans {
+			log.Debug("trusted sequencer URL ", c.Etherman.L2URLs[i])
+			zkEVMClient := client.NewClient(c.Etherman.L2URLs[i])
+			chExitRootEventL2 := make(chan *etherman.GlobalExitRoot)
+			chSyncedL2 := make(chan uint)
+			chsExitRootEvent = append(chsExitRootEvent, chExitRootEventL2)
+			chsSyncedL2 = append(chsSyncedL2, chSyncedL2)
+			go runSynchronizer(ctx.Context, 0, bridgeController, l2EthermanClient, c.Synchronizer, storage, zkEVMClient, chExitRootEventL2, nil, chSyncedL2, []uint{}, messagePushProducer, redisStorage)
 		}
+		chSynced := make(chan uint)
+		go runSynchronizer(ctx.Context, c.NetworkConfig.GenBlockNumber, bridgeController, l1Etherman, c.Synchronizer, storage, nil, nil, chsExitRootEvent, chSynced, networkIDs, messagePushProducer, redisStorage)
+		go func() {
+			for {
+				select {
+				case netID := <-chSynced:
+					log.Debug("NetworkID synced: ", netID)
+				case <-ctx.Done():
+					log.Debug("Stopping goroutine that listen new GER updates")
+					return
+				}
+			}
+		}()
 
 		if c.ClaimTxManager.Enabled {
 			for i := 0; i < len(c.Etherman.L2URLs); i++ {
-				// we should match the orders of L2URLs between etherman and claimtxman
-				// since we are using the networkIDs in the same order
-				claimTxManager, err := claimtxman.NewClaimTxManager(c.ClaimTxManager, chExitRootEvent, chSynced, c.Etherman.L2URLs[i], networkIDs[i+1], c.NetworkConfig.L2PolygonBridgeAddresses[i], bridgeService, storage, messagePushProducer, redisStorage, rollupID)
+				ctx := context.Background()
+				client, err := utils.NewClient(ctx, c.Etherman.L2URLs[i], c.NetworkConfig.L2PolygonBridgeAddresses[i])
+				if err != nil {
+					log.Fatalf("error creating client for L2 %s. Error: %v", c.Etherman.L2URLs[i], err)
+				}
+				nonceCache, err := claimtxman.NewNonceCache(ctx, client)
+				if err != nil {
+					log.Fatalf("error creating nonceCache for L2 %s. Error: %v", c.Etherman.L2URLs[i], err)
+				}
+				auth, err := client.GetSignerFromKeystore(ctx, c.ClaimTxManager.PrivateKey)
+				if err != nil {
+					log.Fatalf("error creating signer for L2 %s. Error: %v", c.Etherman.L2URLs[i], err)
+				}
+				rollupID := l2Ethermans[i].GetNetworkID() // RollupID == networkID
+				claimTxManager, err := claimtxman.NewClaimTxManager(ctx, c.ClaimTxManager, chsExitRootEvent[i], chsSyncedL2[i],
+					c.Etherman.L2URLs[i], networkIDs[i+1], c.NetworkConfig.L2PolygonBridgeAddresses[i], bridgeService, storage, rollupID, l2Ethermans[i], nonceCache, auth, nil, nil)
 				if err != nil {
 					log.Fatalf("error creating claim tx manager for L2 %s. Error: %v", c.Etherman.L2URLs[i], err)
 				}
@@ -288,19 +310,10 @@ func startServer(ctx *cli.Context, opts ...runOptionFunc) error {
 			}
 		} else {
 			log.Warn("ClaimTxManager not configured")
-			go func() {
-				for {
-					select {
-					case <-chExitRootEvent:
-						log.Debug("New GER received")
-					case netID := <-chSynced:
-						log.Debug("NetworkID synced: ", netID)
-					case <-ctx.Context.Done():
-						log.Debug("Stopping goroutine that listen new GER updates")
-						return
-					}
-				}
-			}()
+			for i := range chsExitRootEvent {
+				monitorChannel(ctx.Context, chsExitRootEvent[i], chsSyncedL2[i], networkIDs[i+1], storage)
+			}
+
 		}
 
 		// init token logo client
@@ -343,5 +356,6 @@ func initCommon(ctx *cli.Context) (*config.Config, error) {
 	}
 	setupLog(c.Log)
 	apolloconfig.SetLogger()
+	logVersion()
 	return c, nil
 }

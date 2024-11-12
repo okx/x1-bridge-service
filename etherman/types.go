@@ -29,13 +29,15 @@ type GlobalExitRoot struct {
 	BlockNumber    uint64
 	ExitRoots      []common.Hash
 	GlobalExitRoot common.Hash
+	NetworkID      uint
 
-	// XLayer
+	// For X Layer
 	Time time.Time
 }
 
 // Deposit struct
 type Deposit struct {
+	Id                 uint64
 	LeafType           uint8
 	OriginalNetwork    uint
 	OriginalAddress    common.Address
@@ -51,9 +53,8 @@ type Deposit struct {
 	// it is only used for the bridge service
 	ReadyForClaim bool
 
-	// XLayer
+	// For X Layer
 	Time                time.Time
-	Id                  uint64
 	ReadyTime           time.Time
 	DestContractAddress common.Address
 }
@@ -72,7 +73,7 @@ type Claim struct {
 	NetworkID          uint
 	TxHash             common.Hash
 
-	// XLayer
+	// For X Layer
 	Time time.Time
 }
 

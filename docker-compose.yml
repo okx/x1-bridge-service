@@ -1,8 +1,4 @@
-version: "3.5"
-networks:
-  default:
-    name: xlayer
-    
+version: '3.5'
 services:
   zkevm-state-db:
     container_name: zkevm-state-db
@@ -59,117 +55,15 @@ services:
       - POSTGRES_DB=test_db
     command: ["postgres", "-N", "500"]
 
-  xlayer-bridge-redis:
-    container_name: xlayer-bridge-redis
-    image: redis
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-        reservations:
-          memory: 1G
-    expose:
-      - 6379
-    ports:
-      - 6379:6379
-    environment:
-      - REDIS_PASSWORD=my_password
-      - REDIS_PORT=6379
-      - REDIS_DATABASES=8
-
-#  kafka-zookeeper:
-#    image: wurstmeister/zookeeper
-#    container_name: kafka-zookeeper
-#    ports:
-#      - "2181:2181"
-#    expose:
-#      - 2181
-
-#  xlayer-bridge-coin-kafka:
-#    image: wurstmeister/kafka
-#    container_name: xlayer-bridge-coin-kafka
-#    expose:
-#      - 9092
-#    environment:
-#      KAFKA_ADVERTISED_LISTENERS: INSIDE://:9092,OUTSIDE://localhost:9123
-#      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INSIDE:PLAINTEXT,OUTSIDE:PLAINTEXT
-#      KAFKA_LISTENERS: INSIDE://0.0.0.0:9092,OUTSIDE://0.0.0.0:9123
-#      KAFKA_INTER_BROKER_LISTENER_NAME: INSIDE
-#      KAFKA_ZOOKEEPER_CONNECT: kafka-zookeeper:2181
-#      KAFKA_CREATE_TOPICS: "explorer_chainAddressPrice_push:1:1"
-
-  xlayer-bridge-service-api:
-    container_name: xlayer-bridge-service-api
-    image: xlayer-bridge-service
-    ports:
-      - 8080:8080
-      - 9090:9090
-      - 9300:9091
-    environment:
-      - ZKEVM_BRIDGE_DATABASE_USER=test_user
-      - ZKEVM_BRIDGE_DATABASE_PASSWORD=test_password
-      - ZKEVM_BRIDGE_DATABASE_NAME=test_db
-      - ZKEVM_BRIDGE_DATABASE_HOST=zkevm-bridge-db
-      - ZKEVM_BRIDGE_DATABASE_PORT=5432
-    volumes:
-      - ./test/test.keystore.claimtx:/pk/keystore.claimtxmanager
-      - ./config/config.local.toml:/app/config.toml
-      - ./sentinel/config.json:/app/sentinel_config.json
-    command:
-      - "/bin/sh"
-      - "-c"
-      - "/app/xlayer-bridge runAPI --cfg /app/config.toml"
-
-  xlayer-bridge-service-task:
-    container_name: xlayer-bridge-service-task
-    image: xlayer-bridge-service
-    ports:
-      - 9302:9091
-    environment:
-      - ZKEVM_BRIDGE_DATABASE_USER=test_user
-      - ZKEVM_BRIDGE_DATABASE_PASSWORD=test_password
-      - ZKEVM_BRIDGE_DATABASE_NAME=test_db
-      - ZKEVM_BRIDGE_DATABASE_HOST=zkevm-bridge-db
-      - ZKEVM_BRIDGE_DATABASE_PORT=5432
-    volumes:
-      - ./test/test.keystore.claimtx:/pk/keystore.claimtxmanager
-      - ./config/config.local.toml:/app/config.toml
-    command:
-      - "/bin/sh"
-      - "-c"
-      - "/app/xlayer-bridge runTask --cfg /app/config.toml"
-
-  xlayer-bridge-service-push:
-    container_name: xlayer-bridge-service-push
-    image: xlayer-bridge-service
-    ports:
-      - 9301:9091
-    environment:
-      - ZKEVM_BRIDGE_DATABASE_USER=test_user
-      - ZKEVM_BRIDGE_DATABASE_PASSWORD=test_password
-      - ZKEVM_BRIDGE_DATABASE_NAME=test_db
-      - ZKEVM_BRIDGE_DATABASE_HOST=zkevm-bridge-db
-      - ZKEVM_BRIDGE_DATABASE_PORT=5432
-    volumes:
-      - ./test/test.keystore.claimtx:/pk/keystore.claimtxmanager
-      - ./config/config.local.toml:/app/config.toml
-    command:
-      - "/bin/sh"
-      - "-c"
-      - "/app/xlayer-bridge runPushTask --cfg /app/config.toml"
-
   zkevm-node:
     container_name: zkevm-node
-    image: hermeznetwork/zkevm-node:v0.5.0
+    image: hermeznetwork/zkevm-node:v0.6.6
     ports:
       - 8123:8123
       - 61090:61090
     environment:
       - ZKEVM_NODE_STATE_DB_HOST=zkevm-state-db
       - ZKEVM_NODE_POOL_HOST=zkevm-pool-db
-      - ZKEVM_NODE_RPC_DB_HOST=zkevm-rpc-db
-      - ZKEVM_NODE_SEQUENCER_FINALIZER_BATCHMAXDELTATIMESTAMP="4s"
-      - ZKEVM_NODE_SEQUENCER_FINALIZER_L2BLOCKMAXDELTATIMESTAMP="1s"
     volumes:
       - ./test/test.keystore.sequencer:/pk/keystore.sequencer
       - ./test/test.keystore.aggregator:/pk/keystore.aggregator
@@ -183,14 +77,13 @@ services:
 
   zkevm-node-v1tov2:
     container_name: zkevm-node-v1tov2
-    image: hermeznetwork/zkevm-node:v0.5.0
+    image: hermeznetwork/zkevm-node:v0.6.6
     ports:
       - 8123:8123
       - 9091:9091 # needed if metrics enabled
     environment:
       - ZKEVM_NODE_STATE_DB_HOST=zkevm-state-db
       - ZKEVM_NODE_POOL_HOST=zkevm-pool-db
-      - ZKEVM_NODE_RPC_DB_HOST=zkevm-rpc-db
       - ZKEVM_NODE_ETHERMAN_URL=http://zkevm-v1tov2-l1-network:8545
       - ZKEVM_NODE_EXECUTOR_URI=zkevm-prover-v1tov2:50071
       - ZKEVM_NODE_MTCLIENT_URI=zkevm-prover-v1tov2:50061
@@ -207,13 +100,12 @@ services:
 
   zkevm-aggregator-v1tov2:
     container_name: zkevm-aggregator-v1tov2
-    image: hermeznetwork/zkevm-node:v0.5.0
+    image: hermeznetwork/zkevm-node:v0.6.6
     ports:
       - 9092:9091 # needed if metrics enabled
     environment:
       - ZKEVM_NODE_STATE_DB_HOST=zkevm-state-db
       - ZKEVM_NODE_POOL_HOST=zkevm-pool-db
-      - ZKEVM_NODE_RPC_DB_HOST=zkevm-rpc-db
       - ZKEVM_NODE_ETHERMAN_URL=http://zkevm-v1tov2-l1-network:8545
       - ZKEVM_NODE_EXECUTOR_URI=zkevm-prover-v1tov2:50071
       - ZKEVM_NODE_MTCLIENT_URI=zkevm-prover-v1tov2:50061
@@ -230,7 +122,7 @@ services:
 
   zkevm-mock-l1-network:
     container_name: zkevm-local-l1-network
-    image: hermeznetwork/geth-zkevm-contracts:v2.1.1-fork.7-geth1.12.0
+    image: hermeznetwork/geth-zkevm-contracts:elderberry-fork.9-geth1.13.11
     ports:
       - 8545:8545
 
@@ -266,7 +158,7 @@ services:
 
   zkevm-prover:
     container_name: zkevm-prover
-    image: hermeznetwork/zkevm-prover:v4.0.1
+    image: hermeznetwork/zkevm-prover:v6.0.0
     ports:
       - 50051:50051 # Prover
       - 50052:50052 # MockProver
@@ -279,7 +171,7 @@ services:
 
   zkevm-prover-v1tov2:
     container_name: zkevm-prover-v1tov2
-    image: hermeznetwork/zkevm-prover:v4.0.1
+    image: hermeznetwork/zkevm-prover:v6.0.0
     environment:
       - AGGREGATOR_CLIENT_HOST=zkevm-aggregator-v1tov2
     ports:
@@ -292,51 +184,304 @@ services:
     command: >
       zkProver -c /usr/src/app/config.json
 
-  xlayer-bridge-service:
-    container_name: xlayer-bridge-service
-    image: xlayer-bridge-service
+  zkevm-bridge-service:
+    container_name: zkevm-bridge-service
+    image: zkevm-bridge-service
     ports:
       - 8080:8080
       - 9090:9090
-      - 9300:9091
     environment:
-      - ZKEVM_BRIDGE_DATABASE_USER=test_user
-      - ZKEVM_BRIDGE_DATABASE_PASSWORD=test_password
-      - ZKEVM_BRIDGE_DATABASE_NAME=test_db
-      - ZKEVM_BRIDGE_DATABASE_HOST=zkevm-bridge-db
-      - ZKEVM_BRIDGE_DATABASE_PORT=5432
+      - ZKEVM_BRIDGE_SYNCDB_USER=test_user
+      - ZKEVM_BRIDGE_SYNCDB_PASSWORD=test_password
+      - ZKEVM_BRIDGE_SYNCDB_NAME=test_db
+      - ZKEVM_BRIDGE_SYNCDB_HOST=zkevm-bridge-db
+      - ZKEVM_BRIDGE_SYNCDB_PORT=5432
+      - ZKEVM_BRIDGE_BRIDGESERVER_DB_USER=test_user
+      - ZKEVM_BRIDGE_BRIDGESERVER_DB_PASSWORD=test_password
+      - ZKEVM_BRIDGE_BRIDGESERVER_DB_NAME=test_db
+      - ZKEVM_BRIDGE_BRIDGESERVER_DB_HOST=zkevm-bridge-db
+      - ZKEVM_BRIDGE_BRIDGESERVER_DB_PORT=5432
+      - ZKEVM_BRIDGE_CLAIMTXMANAGER_GROUPINGCLAIMS_ENABLED=${ZKEVM_BRIDGE_CLAIMTXMANAGER_GROUPINGCLAIMS_ENABLED}
     volumes:
       - ./test/test.keystore.claimtx:/pk/keystore.claimtxmanager
       - ./config/config.local.toml:/app/config.toml
-      - ./sentinel/config.json:/app/sentinel_config.json
     command:
       - "/bin/sh"
       - "-c"
-      - "/app/xlayer-bridge run --cfg /app/config.toml"
+      - "/app/test-deploy-claimcompressor deploy --url \"http://zkevm-node:8123\" --bridgeAddress \"0xFe12ABaa190Ef0c8638Ee0ba9F828BF41368Ca0E\" --walletFile /pk/keystore.claimtxmanager --password \"testonly\" &&
+        /app/zkevm-bridge run --cfg /app/config.toml"
 
-  xlayer-bridge-service-v1tov2:
-    container_name: xlayer-bridge-service-v1tov2
-    image: xlayer-bridge-service
+  zkevm-bridge-service-v1tov2:
+    container_name: zkevm-bridge-service-v1tov2
+    image: zkevm-bridge-service
     ports:
       - 8080:8080
       - 9090:9090
-      - 9300:9091
     environment:
-      - ZKEVM_BRIDGE_DATABASE_USER=test_user
-      - ZKEVM_BRIDGE_DATABASE_PASSWORD=test_password
-      - ZKEVM_BRIDGE_DATABASE_NAME=test_db
-      - ZKEVM_BRIDGE_DATABASE_HOST=zkevm-bridge-db
-      - ZKEVM_BRIDGE_DATABASE_PORT=5432
+      - ZKEVM_BRIDGE_SYNCDB_USER=test_user
+      - ZKEVM_BRIDGE_SYNCDB_PASSWORD=test_password
+      - ZKEVM_BRIDGE_SYNCDB_NAME=test_db
+      - ZKEVM_BRIDGE_SYNCDB_HOST=zkevm-bridge-db
+      - ZKEVM_BRIDGE_SYNCDB_PORT=5432
+      - ZKEVM_BRIDGE_BRIDGESERVER_DB_USER=test_user
+      - ZKEVM_BRIDGE_BRIDGESERVER_DB_PASSWORD=test_password
+      - ZKEVM_BRIDGE_BRIDGESERVER_DB_NAME=test_db
+      - ZKEVM_BRIDGE_BRIDGESERVER_DB_HOST=zkevm-bridge-db
+      - ZKEVM_BRIDGE_BRIDGESERVER_DB_PORT=5432
       - ZKEVM_BRIDGE_ETHERMAN_L1URL=http://zkevm-v1tov2-l1-network:8545
       - ZKEVM_BRIDGE_ETHERMAN_L2URLS=http://zkevm-node-v1tov2:8123
-      - ZKEVM_BRIDGE_NETWORKCONFIG_POLYGONZKEVMADDRESS=0x3Aa5ebB10DC797CAC828524e59A333d0A371443c
       - ZKEVM_BRIDGE_NETWORKCONFIG_POLYGONBRIDGEADDRESS=0x80a540502706aa690476D5534e26939894559c05
       - ZKEVM_BRIDGE_NETWORKCONFIG_L2POLYGONBRIDGEADDRESSES=0x80a540502706aa690476D5534e26939894559c05
+      - ZKEVM_BRIDGE_CLAIMTXMANAGER_GROUPINGCLAIMS_ENABLED=${ZKEVM_BRIDGE_CLAIMTXMANAGER_GROUPINGCLAIMS_ENABLED}
     volumes:
       - ./test/test.keystore.claimtx:/pk/keystore.claimtxmanager
       - ./config/config.local.toml:/app/config.toml
-      - ./sentinel/config.json:/app/sentinel_config.json
     command:
       - "/bin/sh"
       - "-c"
-      - "/app/xlayer-bridge run --cfg /app/config.toml"
+      - "/app/zkevm-bridge run --cfg /app/config.toml"
+  
+  zkevm-mock-l1-network-multi-rollup:
+    container_name: zkevm-mock-l1-network-multi-rollup
+    image: hermeznetwork/geth-zkevm-contracts:elderberry-2-rollups-fork.9-geth1.13.11
+    ports:
+      - 8545:8545
+  
+  zkevm-state-db-2:
+    container_name: zkevm-state-db-2
+    image: postgres
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+    ports:
+      - 5436:5432
+    volumes:
+      - ./test/config/prover/initproverdb.sql:/docker-entrypoint-initdb.d/init.sql
+    environment:
+      - POSTGRES_USER=state_user
+      - POSTGRES_PASSWORD=state_password
+      - POSTGRES_DB=state_db
+    command: ["postgres", "-N", "500"]
+
+  zkevm-pool-db-2:
+    container_name: zkevm-pool-db-2
+    image: postgres
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+    ports:
+      - 5437:5432
+    environment:
+      - POSTGRES_USER=pool_user
+      - POSTGRES_PASSWORD=pool_password
+      - POSTGRES_DB=pool_db
+    command: ["postgres", "-N", "500"]
+
+  zkevm-bridge-db-2:
+    container_name: zkevm-bridge-db-2
+    image: postgres
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+    expose:
+      - 5438
+    ports:
+      - 5438:5432
+    environment:
+      - POSTGRES_USER=test_user
+      - POSTGRES_PASSWORD=test_password
+      - POSTGRES_DB=test_db
+    command: ["postgres", "-N", "500"]
+
+  zkevm-prover-1:
+    container_name: zkevm-prover-1
+    image: hermeznetwork/zkevm-prover:v6.0.0
+    environment:
+      - AGGREGATOR_CLIENT_HOST=zkevm-node-1
+      - DATABASE_URL=postgresql://prover_user:prover_pass@zkevm-state-db:5432/prover_db
+      - EXECUTOR_CLIENT_PORT=50071
+      - EXECUTOR_SERVER_PORT=50071
+      - HASHDB_SERVER_PORT=50061
+    ports:
+      - 50051:50051 # Prover
+      - 50052:50052 # MockProver
+      - 50061:50061 # MT
+      - 50071:50071 # Executor
+    volumes:
+      - ./test/config/prover/config.prover.json:/usr/src/app/config.json
+    command: >
+      zkProver -c /usr/src/app/config.json
+
+  zkevm-prover-2:
+    container_name: zkevm-prover-2
+    image: hermeznetwork/zkevm-prover:v6.0.0
+    environment:
+      - AGGREGATOR_CLIENT_HOST=zkevm-node-2
+      - DATABASE_URL=postgresql://prover_user:prover_pass@zkevm-state-db-2:5432/prover_db
+      - EXECUTOR_CLIENT_PORT=50074
+      - EXECUTOR_SERVER_PORT=50074
+      - HASHDB_SERVER_PORT=50063
+    ports:
+      - 50053:50051 # Prover
+      - 50054:50052 # MockProver
+      - 50063:50063 # MT
+      - 50074:50074 # Executor
+    volumes:
+      - ./test/config/prover/config.prover.json:/usr/src/app/config.json
+    command: >
+      zkProver -c /usr/src/app/config.json
+
+  zkevm-node-2:
+    container_name: zkevm-node-2
+    image: hermeznetwork/zkevm-node:v0.6.6
+    ports:
+      - 8124:8124
+      - 9092:9092 # needed if metrics enabled
+    environment:
+      - ZKEVM_NODE_STATE_DB_HOST=zkevm-state-db-2
+      - ZKEVM_NODE_POOL_DB_HOST=zkevm-pool-db-2
+      - ZKEVM_NODE_ETHERMAN_URL=http://zkevm-mock-l1-network-multi-rollup:8545
+      - ZKEVM_NODE_EXECUTOR_URI=zkevm-prover-2:50074
+      - ZKEVM_NODE_MTCLIENT_URI=zkevm-prover-2:50063
+      - ZKEVM_NODE_SEQUENCESENDER_L2COINBASE=0x15d34aaf54267db7d7c367839aaf71a00a2c6a65
+      - ZKEVM_NODE_AGGREGATOR_SENDERADDRESS=0x9965507d1a55bcc2695c58ba16fb37d819b0a4dc
+      - ZKEVM_NODE_RPC_PORT=8124
+      - ZKEVM_NODE_METRICS_PORT=9092
+    volumes:
+      - ./test/test.keystore.sequencer-2:/pk/keystore.sequencer
+      - ./test/test.keystore.aggregator-2:/pk/keystore.aggregator
+      - ./test/config/node/config.zkevm.node.toml:/app/config.toml
+      - ./test/config/node/genesis.local-2.json:/app/genesis.json
+    command: 
+      - "/bin/sh"
+      - "-c"
+      - "echo 'zkevm-node-2' && /app/zkevm-node approve --network custom --custom-network-file /app/genesis.json --am 115792089237316195423570985008687907853269984665640564039457584007913129639935 -y --cfg /app/config.toml --key-store-path /pk/keystore.sequencer --password testonly &&
+         /app/zkevm-node run --network custom --custom-network-file /app/genesis.json --cfg /app/config.toml --components \"synchronizer,rpc,sequencer,sequence-sender,eth-tx-manager,l2gaspricer,aggregator\" --http.api eth,net,debug,zkevm,txpool,web3"
+
+  zkevm-node-1:
+    container_name: zkevm-node-1
+    image: hermeznetwork/zkevm-node:v0.6.6
+    ports:
+      - 8123:8123
+      - 9091:9091 # needed if metrics enabled
+    environment:
+      - ZKEVM_NODE_ETHERMAN_URL=http://zkevm-mock-l1-network-multi-rollup:8545
+      - ZKEVM_NODE_EXECUTOR_URI=zkevm-prover-1:50071
+      - ZKEVM_NODE_MTCLIENT_URI=zkevm-prover-1:50061
+    volumes:
+      - ./test/test.keystore.sequencer:/pk/keystore.sequencer
+      - ./test/test.keystore.aggregator:/pk/keystore.aggregator
+      - ./test/config/node/config.zkevm.node.toml:/app/config.toml
+      - ./test/config/node/genesis.local-1.json:/app/genesis.json
+    command: 
+      - "/bin/sh"
+      - "-c"
+      - "echo 'zkevm-node-1' && /app/zkevm-node approve --network custom --custom-network-file /app/genesis.json --am 115792089237316195423570985008687907853269984665640564039457584007913129639935 -y --cfg /app/config.toml --key-store-path /pk/keystore.sequencer --password testonly &&
+         /app/zkevm-node run --network custom --custom-network-file /app/genesis.json --cfg /app/config.toml --components \"synchronizer,rpc,sequencer,sequence-sender,eth-tx-manager,l2gaspricer,aggregator\" --http.api eth,net,debug,zkevm,txpool,web3"
+
+  zkevm-bridge-service-1:
+    container_name: zkevm-bridge-service-1
+    image: zkevm-bridge-service
+    ports:
+      - 8080:8080
+      - 9090:9090
+    environment:
+      - ZKEVM_BRIDGE_SYNCDB_USER=test_user
+      - ZKEVM_BRIDGE_SYNCDB_PASSWORD=test_password
+      - ZKEVM_BRIDGE_SYNCDB_NAME=test_db
+      - ZKEVM_BRIDGE_SYNCDB_HOST=zkevm-bridge-db
+      - ZKEVM_BRIDGE_SYNCDB_PORT=5432
+      - ZKEVM_BRIDGE_BRIDGESERVER_DB_USER=test_user
+      - ZKEVM_BRIDGE_BRIDGESERVER_DB_PASSWORD=test_password
+      - ZKEVM_BRIDGE_BRIDGESERVER_DB_NAME=test_db
+      - ZKEVM_BRIDGE_BRIDGESERVER_DB_HOST=zkevm-bridge-db
+      - ZKEVM_BRIDGE_BRIDGESERVER_DB_PORT=5432
+      - ZKEVM_BRIDGE_ETHERMAN_L1URL=http://zkevm-mock-l1-network-multi-rollup:8545
+      - ZKEVM_BRIDGE_ETHERMAN_L2URLS=http://zkevm-node-1:8123
+      - ZKEVM_BRIDGE_NETWORKCONFIG_POLYGONZKEVMGLOBALEXITROOTADDRESS=0x610178dA211FEF7D417bC0e6FeD39F05609AD788
+      - ZKEVM_BRIDGE_NETWORKCONFIG_POLYGONROLLUPMANAGERADDRESS=0xA51c1fc2f0D1a1b8494Ed1FE312d7C3a78Ed91C0
+      - ZKEVM_BRIDGE_NETWORKCONFIG_POLYGONBRIDGEADDRESS=0xFe12ABaa190Ef0c8638Ee0ba9F828BF41368Ca0E
+      - ZKEVM_BRIDGE_NETWORKCONFIG_L2POLYGONBRIDGEADDRESSES=0xFe12ABaa190Ef0c8638Ee0ba9F828BF41368Ca0E
+      - ZKEVM_BRIDGE_CLAIMTXMANAGER_GROUPINGCLAIMS_ENABLED=${ZKEVM_BRIDGE_CLAIMTXMANAGER_GROUPINGCLAIMS_ENABLED}
+    volumes:
+      - ./test/test.keystore.claimtx:/pk/keystore.claimtxmanager
+      - ./config/config.local.toml:/app/config.toml
+    command:
+      - "/bin/sh"
+      - "-c"
+      - "/app/zkevm-bridge run --cfg /app/config.toml"
+  
+  zkevm-bridge-service-2:
+    container_name: zkevm-bridge-service-2
+    image: zkevm-bridge-service
+    ports:
+      - 8081:8080
+      - 9093:9090
+    environment:
+      - ZKEVM_BRIDGE_SYNCDB_USER=test_user
+      - ZKEVM_BRIDGE_SYNCDB_PASSWORD=test_password
+      - ZKEVM_BRIDGE_SYNCDB_NAME=test_db
+      - ZKEVM_BRIDGE_SYNCDB_HOST=zkevm-bridge-db-2
+      - ZKEVM_BRIDGE_SYNCDB_PORT=5432
+      - ZKEVM_BRIDGE_BRIDGESERVER_DB_USER=test_user
+      - ZKEVM_BRIDGE_BRIDGESERVER_DB_PASSWORD=test_password
+      - ZKEVM_BRIDGE_BRIDGESERVER_DB_NAME=test_db
+      - ZKEVM_BRIDGE_BRIDGESERVER_DB_HOST=zkevm-bridge-db-2
+      - ZKEVM_BRIDGE_BRIDGESERVER_DB_PORT=5432
+      - ZKEVM_BRIDGE_ETHERMAN_L1URL=http://zkevm-mock-l1-network-multi-rollup:8545
+      - ZKEVM_BRIDGE_ETHERMAN_L2URLS=http://zkevm-node-2:8124
+      - ZKEVM_BRIDGE_NETWORKCONFIG_POLYGONZKEVMGLOBALEXITROOTADDRESS=0x610178dA211FEF7D417bC0e6FeD39F05609AD788
+      - ZKEVM_BRIDGE_NETWORKCONFIG_POLYGONROLLUPMANAGERADDRESS=0xA51c1fc2f0D1a1b8494Ed1FE312d7C3a78Ed91C0
+      - ZKEVM_BRIDGE_NETWORKCONFIG_POLYGONBRIDGEADDRESS=0xFe12ABaa190Ef0c8638Ee0ba9F828BF41368Ca0E
+      - ZKEVM_BRIDGE_NETWORKCONFIG_L2POLYGONBRIDGEADDRESSES=0xFe12ABaa190Ef0c8638Ee0ba9F828BF41368Ca0E
+      - ZKEVM_BRIDGE_CLAIMTXMANAGER_GROUPINGCLAIMS_ENABLED=${ZKEVM_BRIDGE_CLAIMTXMANAGER_GROUPINGCLAIMS_ENABLED}
+    volumes:
+      - ./test/test.keystore.claimtx:/pk/keystore.claimtxmanager
+      - ./config/config.local.toml:/app/config.toml
+    command:
+      - "/bin/sh"
+      - "-c"
+      - "/app/zkevm-bridge run --cfg /app/config.toml"
+  
+  zkevm-bridge-service-3:
+    container_name: zkevm-bridge-service-3
+    image: zkevm-bridge-service
+    ports:
+      - 8080:8080
+      - 9090:9090
+    environment:
+      - ZKEVM_BRIDGE_SYNCDB_USER=test_user
+      - ZKEVM_BRIDGE_SYNCDB_PASSWORD=test_password
+      - ZKEVM_BRIDGE_SYNCDB_NAME=test_db
+      - ZKEVM_BRIDGE_SYNCDB_HOST=zkevm-bridge-db
+      - ZKEVM_BRIDGE_SYNCDB_PORT=5432
+      - ZKEVM_BRIDGE_BRIDGESERVER_DB_USER=test_user
+      - ZKEVM_BRIDGE_BRIDGESERVER_DB_PASSWORD=test_password
+      - ZKEVM_BRIDGE_BRIDGESERVER_DB_NAME=test_db
+      - ZKEVM_BRIDGE_BRIDGESERVER_DB_HOST=zkevm-bridge-db
+      - ZKEVM_BRIDGE_BRIDGESERVER_DB_PORT=5432
+      - ZKEVM_BRIDGE_ETHERMAN_L1URL=http://zkevm-mock-l1-network-multi-rollup:8545
+      - ZKEVM_BRIDGE_ETHERMAN_L2URLS=http://zkevm-node-1:8123,http://zkevm-node-2:8124
+      - ZKEVM_BRIDGE_NETWORKCONFIG_POLYGONZKEVMGLOBALEXITROOTADDRESS=0x610178dA211FEF7D417bC0e6FeD39F05609AD788
+      - ZKEVM_BRIDGE_NETWORKCONFIG_POLYGONROLLUPMANAGERADDRESS=0xA51c1fc2f0D1a1b8494Ed1FE312d7C3a78Ed91C0
+      - ZKEVM_BRIDGE_NETWORKCONFIG_POLYGONBRIDGEADDRESS=0xFe12ABaa190Ef0c8638Ee0ba9F828BF41368Ca0E
+      - ZKEVM_BRIDGE_NETWORKCONFIG_L2POLYGONBRIDGEADDRESSES=0xFe12ABaa190Ef0c8638Ee0ba9F828BF41368Ca0E,0xFe12ABaa190Ef0c8638Ee0ba9F828BF41368Ca0E
+      - ZKEVM_BRIDGE_CLAIMTXMANAGER_GROUPINGCLAIMS_ENABLED=${ZKEVM_BRIDGE_CLAIMTXMANAGER_GROUPINGCLAIMS_ENABLED}
+    volumes:
+      - ./test/test.keystore.claimtx:/pk/keystore.claimtxmanager
+      - ./config/config.local.toml:/app/config.toml
+    command:
+      - "/bin/sh"
+      - "-c"
+      - "/app/test-deploy-claimcompressor deploy --url \"http://zkevm-node-1:8123\" --bridgeAddress \"0xFe12ABaa190Ef0c8638Ee0ba9F828BF41368Ca0E\" --walletFile /pk/keystore.claimtxmanager --password \"testonly\" &&
+        /app/test-deploy-claimcompressor deploy --url \"http://zkevm-node-2:8124\" --bridgeAddress \"0xFe12ABaa190Ef0c8638Ee0ba9F828BF41368Ca0E\" --walletFile /pk/keystore.claimtxmanager --password \"testonly\" &&
+        /app/zkevm-bridge run --cfg /app/config.toml"

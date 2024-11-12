@@ -24,12 +24,12 @@ func TestMonitoredTxStorage(t *testing.T) {
 	pg, err := pgstorage.NewPostgresStorage(dbCfg)
 	require.NoError(t, err)
 
-	var _ storageInterface = pg
+	var _ StorageInterface = pg
 	tx, err := pg.BeginDBTransaction(ctx)
 	require.NoError(t, err)
-
+	// For X Layer
 	utils.InitRollupNetworkId(1)
-	deposit := &etherman.Deposit{
+	deposit1 := &etherman.Deposit{
 		NetworkID:          0,
 		OriginalNetwork:    0,
 		OriginalAddress:    common.HexToAddress("0x6B175474E89094C44Da98b954EedeAC495271d0F"),
@@ -40,7 +40,21 @@ func TestMonitoredTxStorage(t *testing.T) {
 		DepositCount:       1,
 		Metadata:           common.FromHex("0x0"),
 	}
-	_, err = pg.AddDeposit(ctx, deposit, tx)
+	_, err = pg.AddDeposit(ctx, deposit1, tx)
+	require.NoError(t, err)
+
+	deposit2 := &etherman.Deposit{
+		NetworkID:          0,
+		OriginalNetwork:    0,
+		OriginalAddress:    common.HexToAddress("0x6B175474E89094C44Da98b954EedeAC495271d0F"),
+		Amount:             big.NewInt(1000000),
+		DestinationNetwork: 1,
+		DestinationAddress: common.HexToAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"),
+		BlockNumber:        1,
+		DepositCount:       2,
+		Metadata:           common.FromHex("0x0"),
+	}
+	_, err = pg.AddDeposit(ctx, deposit2, tx)
 	require.NoError(t, err)
 
 	toAdr := common.HexToAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266")
@@ -72,7 +86,7 @@ func TestMonitoredTxStorage(t *testing.T) {
 		DepositID: 2,
 		From:      common.HexToAddress("0x6B175474E89094C44Da98b954EedeAC495271d0F"),
 		To:        &toAdr,
-		Nonce:     1,
+		Nonce:     2,
 		Value:     big.NewInt(1000000),
 		Data:      common.FromHex("0x0"),
 		Gas:       1000000,
@@ -82,11 +96,11 @@ func TestMonitoredTxStorage(t *testing.T) {
 	err = pg.AddClaimTx(ctx, mTx, tx)
 	require.NoError(t, err)
 
-	mTxs, err := pg.GetClaimTxsByStatus(ctx, []ctmtypes.MonitoredTxStatus{ctmtypes.MonitoredTxStatusCreated}, tx)
+	mTxs, err := pg.GetClaimTxsByStatus(ctx, []ctmtypes.MonitoredTxStatus{ctmtypes.MonitoredTxStatusCreated}, 1, tx)
 	require.NoError(t, err)
 	require.Len(t, mTxs, 1)
 
-	mTxs, err = pg.GetClaimTxsByStatus(ctx, []ctmtypes.MonitoredTxStatus{ctmtypes.MonitoredTxStatusCreated, ctmtypes.MonitoredTxStatusConfirmed}, tx)
+	mTxs, err = pg.GetClaimTxsByStatus(ctx, []ctmtypes.MonitoredTxStatus{ctmtypes.MonitoredTxStatusCreated, ctmtypes.MonitoredTxStatusConfirmed}, 1, tx)
 	require.NoError(t, err)
 	require.Len(t, mTxs, 2)
 
@@ -112,6 +126,7 @@ func TestUpdateDepositStatus(t *testing.T) {
 	blockID, err := pg.AddBlock(ctx, block, nil)
 	require.NoError(t, err)
 
+	// For X Layer
 	utils.InitRollupNetworkId(1)
 	deposit := &etherman.Deposit{
 		NetworkID:          0,
@@ -177,7 +192,7 @@ func TestUpdateDepositStatus(t *testing.T) {
 	l2Root1 := common.FromHex("0xda7bce9f4e8618b6bd2f4132ce798cdc7a60e7e1460a7299e3c6342a579626d2")
 	require.NoError(t, pg.SetRoot(ctx, l2Root1, depositID, deposit.NetworkID, nil))
 
-	deposits, err := pg.UpdateL1DepositsStatus(ctx, l1Root, nil)
+	deposits, err := pg.UpdateL1DepositsStatus(ctx, l1Root, deposit.DestinationNetwork, nil)
 	require.NoError(t, err)
 	require.Len(t, deposits, 1)
 	require.True(t, deposits[0].ReadyForClaim)
@@ -200,6 +215,7 @@ func TestUpdateL2DepositStatusMultipleRollups(t *testing.T) {
 	pg, err := pgstorage.NewPostgresStorage(dbCfg)
 	require.NoError(t, err)
 
+	// For X Layer
 	utils.InitRollupNetworkId(2)
 
 	destAdr := "0x4d5Cf5032B2a844602278b01199ED191A86c93ff"

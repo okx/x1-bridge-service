@@ -2,15 +2,6 @@
 Level = "debug"
 Outputs = ["stdout"]
 
-[Apollo]
-Enabled = false
-AppID = "haibridgetest"
-Cluster = "default"
-MetaAddress = "http://81.68.181.139:8080"
-Namespaces = ["application"]
-Secret = ""
-IsBackupConfig = true
-
 [SyncDB]
 Database = "postgres"
 User = "test_user"
@@ -23,17 +14,24 @@ MaxConns = 20
 [ClaimTxManager]
 Enabled = true
 FrequencyToMonitorTxs = "1s"
-PrivateKey = {Path = "../test/test.keystore.sequencer", Password = "testonly"}
+PrivateKey = {Path = "../test/test.keystore.claimtx", Password = "testonly"}
 RetryInterval = "1s"
 RetryNumber = 10
-FreeGas = true
 AuthorizedClaimMessageAddresses = ["0x90F79bf6EB2c4f870365E785982E1f101E93b906"]
+[ClaimTxManager.GroupingClaims]
+    Enabled = false
+    TriggerNumberOfClaims = 20
+    MaxNumberOfClaimsPerGroup = 25
+    TriggerRetainedClaimPeriod = "1m"
+    MaxRetries = 2
+    RetryInterval = "10s"
+    RetryTimeout = "30s"
+    FrequencyToProcessCompressedClaims = "1m"
+    GasOffset = 100000
 
 [Etherman]
 L1URL = "http://localhost:8545"
 L2URLs = ["http://localhost:8123"]
-L1ChainId = 5
-L2ChainIds = [1001]
 
 [Synchronizer]
 SyncInterval = "1s"
@@ -58,45 +56,11 @@ BridgeVersion = "v1"
     Host = "localhost"
     Port = "5435"
     MaxConns = 20
-    TableSuffix = ""
-    [BridgeServer.Redis]
-    IsClusterMode = false
-    Addrs = ["localhost:6379"]
-    Username = ""
-    Password = ""
-    DB = 0
-    MockPrice = true
-
-[CoinKafkaConsumer]
-Brokers = []
-Topics = ["explorer_chainAddressPrice_push"]
-ConsumerGroupID = "xlayer-bridge-service"
-InitialOffset = -1
-Username = ""
-Password = ""
-
-[MessagePushProducer]
-Enabled = false
 
 [NetworkConfig]
-GenBlockNumber = 1
-PolygonBridgeAddress = "0xCca6ECD73932e49633B9307e1aa0fC174525F424"
+GenBlockNumber = 0
+PolygonBridgeAddress = "0xFe12ABaa190Ef0c8638Ee0ba9F828BF41368Ca0E"
 PolygonZkEVMGlobalExitRootAddress = "0x8A791620dd6260079BF849Dc5567aDC3F2FdC318"
 PolygonRollupManagerAddress = "0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e"
-PolygonZkEvmAddress = "0x8dAF17A20c9DBA35f005b6324F493785D239719d"
-L2PolygonBridgeAddresses = ["0xCca6ECD73932e49633B9307e1aa0fC174525F424"]
-
-[NacosConfig]
-NacosUrls = ""
-NamespaceId = "public"
-ApplicationName = ""
-ExternalListenAddr = "127.0.0.1:26659"
-
-[BusinessConfig]
-StandardChainIds = [195]
-InnerChainIds = [19500]
-
-[Metrics]
-Enabled = true
-Port = "9091"
-
+L2ClaimCompressorAddress = "0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6"
+L2PolygonBridgeAddresses = ["0xFe12ABaa190Ef0c8638Ee0ba9F828BF41368Ca0E"]

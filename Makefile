@@ -3,46 +3,73 @@ include version.mk
 DOCKER_COMPOSE := docker compose -f docker-compose.yml
 DOCKER_COMPOSE_STATE_DB := zkevm-state-db
 DOCKER_COMPOSE_POOL_DB := zkevm-pool-db
-DOCKER_COMPOSE_RPC_DB := zkevm-rpc-db
 DOCKER_COMPOSE_BRIDGE_DB := zkevm-bridge-db
+DOCKER_COMPOSE_STATE_DB_2 := zkevm-state-db-2
+DOCKER_COMPOSE_POOL_DB_2 := zkevm-pool-db-2
+DOCKER_COMPOSE_BRIDGE_DB_2 := zkevm-bridge-db-2
 DOCKER_COMPOSE_ZKEVM_NODE := zkevm-node
 DOCKER_COMPOSE_ZKEVM_NODE_V1TOV2 := zkevm-node-v1tov2
+DOCKER_COMPOSE_ZKEVM_NODE_1 := zkevm-node-1
+DOCKER_COMPOSE_ZKEVM_NODE_2 := zkevm-node-2
 DOCKER_COMPOSE_ZKEVM_AGGREGATOR_V1TOV2 := zkevm-aggregator-v1tov2
 DOCKER_COMPOSE_L1_NETWORK := zkevm-mock-l1-network
+DOCKER_COMPOSE_L1_NETWORK_MULTI_ROLLUP := zkevm-mock-l1-network-multi-rollup
 DOCKER_COMPOSE_L1_NETWORK_V1TOV2 := zkevm-v1tov2-l1-network
 DOCKER_COMPOSE_ZKPROVER := zkevm-prover
 DOCKER_COMPOSE_ZKPROVER_V1TOV2 := zkevm-prover-v1tov2
-DOCKER_COMPOSE_BRIDGE := xlayer-bridge-service
-DOCKER_COMPOSE_BRIDGE_V1TOV2 := xlayer-bridge-service-v1tov2
-
-DOCKER_COMPOSE_REDIS := xlayer-bridge-redis
+DOCKER_COMPOSE_ZKPROVER_1 := zkevm-prover-1
+DOCKER_COMPOSE_ZKPROVER_2 := zkevm-prover-2
+DOCKER_COMPOSE_BRIDGE := zkevm-bridge-service
+DOCKER_COMPOSE_BRIDGE_V1TOV2 := zkevm-bridge-service-v1tov2
+DOCKER_COMPOSE_BRIDGE_1 := zkevm-bridge-service-1
+DOCKER_COMPOSE_BRIDGE_2 := zkevm-bridge-service-2
+DOCKER_COMPOSE_BRIDGE_3 := zkevm-bridge-service-3
 
 RUN_STATE_DB := $(DOCKER_COMPOSE) up -d $(DOCKER_COMPOSE_STATE_DB)
 RUN_POOL_DB := $(DOCKER_COMPOSE) up -d $(DOCKER_COMPOSE_POOL_DB)
 RUN_BRIDGE_DB := $(DOCKER_COMPOSE) up -d $(DOCKER_COMPOSE_BRIDGE_DB)
-RUN_REDIS := $(DOCKER_COMPOSE) up -d $(DOCKER_COMPOSE_REDIS)
-RUN_DBS := ${RUN_BRIDGE_DB} && ${RUN_STATE_DB} && ${RUN_POOL_DB} && ${RUN_REDIS}
+RUN_STATE_DB_2 := $(DOCKER_COMPOSE) up -d $(DOCKER_COMPOSE_STATE_DB_2)
+RUN_POOL_DB_2 := $(DOCKER_COMPOSE) up -d $(DOCKER_COMPOSE_POOL_DB_2)
+RUN_BRIDGE_DB_2 := $(DOCKER_COMPOSE) up -d $(DOCKER_COMPOSE_BRIDGE_DB_2)
+RUN_DBS := ${RUN_BRIDGE_DB} && ${RUN_STATE_DB} && ${RUN_POOL_DB}
+RUN_DBS_2 := ${RUN_BRIDGE_DB_2} && ${RUN_STATE_DB_2} && ${RUN_POOL_DB_2}
 RUN_NODE := $(DOCKER_COMPOSE) up -d $(DOCKER_COMPOSE_ZKEVM_NODE)
+RUN_NODE_1 := $(DOCKER_COMPOSE) up -d $(DOCKER_COMPOSE_ZKEVM_NODE_1)
+RUN_NODE_2 := $(DOCKER_COMPOSE) up -d $(DOCKER_COMPOSE_ZKEVM_NODE_2)
 RUN_NODE_V1TOV2 := $(DOCKER_COMPOSE) up -d $(DOCKER_COMPOSE_ZKEVM_NODE_V1TOV2)
 RUN_AGGREGATOR_V1TOV2 := $(DOCKER_COMPOSE) up -d $(DOCKER_COMPOSE_ZKEVM_AGGREGATOR_V1TOV2)
 RUN_L1_NETWORK := $(DOCKER_COMPOSE) up -d $(DOCKER_COMPOSE_L1_NETWORK)
 RUN_L1_NETWORK_V1TOV2 := $(DOCKER_COMPOSE) up -d $(DOCKER_COMPOSE_L1_NETWORK_V1TOV2)
+RUN_L1_NETWORK_MULTI_ROLLUP := $(DOCKER_COMPOSE) up -d $(DOCKER_COMPOSE_L1_NETWORK_MULTI_ROLLUP)
 RUN_ZKPROVER := $(DOCKER_COMPOSE) up -d $(DOCKER_COMPOSE_ZKPROVER)
+RUN_ZKPROVER_2 := $(DOCKER_COMPOSE) up -d $(DOCKER_COMPOSE_ZKPROVER_2)
+RUN_ZKPROVER_1 := $(DOCKER_COMPOSE) up -d $(DOCKER_COMPOSE_ZKPROVER_1)
 RUN_ZKPROVER_V1TOV2 := $(DOCKER_COMPOSE) up -d $(DOCKER_COMPOSE_ZKPROVER_V1TOV2)
 RUN_BRIDGE := $(DOCKER_COMPOSE) up -d $(DOCKER_COMPOSE_BRIDGE)
+RUN_BRIDGE_1 := $(DOCKER_COMPOSE) up -d $(DOCKER_COMPOSE_BRIDGE_1)
+RUN_BRIDGE_2 := $(DOCKER_COMPOSE) up -d $(DOCKER_COMPOSE_BRIDGE_2)
+RUN_BRIDGE_3 := $(DOCKER_COMPOSE) up -d $(DOCKER_COMPOSE_BRIDGE_3)
 RUN_BRIDGE_V1TOV2 := $(DOCKER_COMPOSE) up -d $(DOCKER_COMPOSE_BRIDGE_V1TOV2)
 
 STOP_NODE_DB := $(DOCKER_COMPOSE) stop $(DOCKER_COMPOSE_NODE_DB) && $(DOCKER_COMPOSE) rm -f $(DOCKER_COMPOSE_NODE_DB)
 STOP_BRIDGE_DB := $(DOCKER_COMPOSE) stop $(DOCKER_COMPOSE_BRIDGE_DB) && $(DOCKER_COMPOSE) rm -f $(DOCKER_COMPOSE_BRIDGE_DB)
-STOP_DBS := ${STOP_NODE_DB} && ${STOP_BRIDGE_DB}
+STOP_DBS := ${STOP_NODE_DB} && ${STOP_BRIDGE_DB} && ${STOP_NODE_DB_2} && ${STOP_BRIDGE_DB_2} && ${STOP_POOL_DB} && ${STOP_POOL_DB_2}
 STOP_NODE := $(DOCKER_COMPOSE) stop $(DOCKER_COMPOSE_ZKEVM_NODE) && $(DOCKER_COMPOSE) rm -f $(DOCKER_COMPOSE_ZKEVM_NODE)
+STOP_NODE_1 := $(DOCKER_COMPOSE) stop $(DOCKER_COMPOSE_ZKEVM_NODE_1) && $(DOCKER_COMPOSE) rm -f $(DOCKER_COMPOSE_ZKEVM_NODE_1)
+STOP_NODE_2 := $(DOCKER_COMPOSE) stop $(DOCKER_COMPOSE_ZKEVM_NODE_2) && $(DOCKER_COMPOSE) rm -f $(DOCKER_COMPOSE_ZKEVM_NODE_2)
 STOP_NODE_V1TOV2 := $(DOCKER_COMPOSE) stop $(DOCKER_COMPOSE_ZKEVM_NODE_V1TOV2) && $(DOCKER_COMPOSE) rm -f $(DOCKER_COMPOSE_ZKEVM_NODE_V1TOV2)
 STOP_AGGREGATOR_V1TOV2 := $(DOCKER_COMPOSE) stop $(DOCKER_COMPOSE_ZKEVM_AGGREGATOR_V1TOV2) && $(DOCKER_COMPOSE) rm -f $(DOCKER_COMPOSE_ZKEVM_AGGREGATOR_V1TOV2)
 STOP_NETWORK := $(DOCKER_COMPOSE) stop $(DOCKER_COMPOSE_L1_NETWORK) && $(DOCKER_COMPOSE) rm -f $(DOCKER_COMPOSE_L1_NETWORK)
+STOP_NETWORK_MULTI_ROLLUP := $(DOCKER_COMPOSE) stop $(DOCKER_COMPOSE_L1_NETWORK_MULTI_ROLLUP) && $(DOCKER_COMPOSE) rm -f $(DOCKER_COMPOSE_L1_NETWORK_MULTI_ROLLUP)
 STOP_NETWORK_V1TOV2 := $(DOCKER_COMPOSE) stop $(DOCKER_COMPOSE_L1_NETWORK_V1TOV2) && $(DOCKER_COMPOSE) rm -f $(DOCKER_COMPOSE_L1_NETWORK_V1TOV2)
 STOP_ZKPROVER := $(DOCKER_COMPOSE) stop $(DOCKER_COMPOSE_ZKPROVER) && $(DOCKER_COMPOSE) rm -f $(DOCKER_COMPOSE_ZKPROVER)
+STOP_ZKPROVER_1 := $(DOCKER_COMPOSE) stop $(DOCKER_COMPOSE_ZKPROVER_1) && $(DOCKER_COMPOSE) rm -f $(DOCKER_COMPOSE_ZKPROVER_1)
+STOP_ZKPROVER_2 := $(DOCKER_COMPOSE) stop $(DOCKER_COMPOSE_ZKPROVER_2) && $(DOCKER_COMPOSE) rm -f $(DOCKER_COMPOSE_ZKPROVER_2)
 STOP_ZKPROVER_V1TOV2 := $(DOCKER_COMPOSE) stop $(DOCKER_COMPOSE_ZKPROVER_V1TOV2) && $(DOCKER_COMPOSE) rm -f $(DOCKER_COMPOSE_ZKPROVER_V1TOV2)
 STOP_BRIDGE := $(DOCKER_COMPOSE) stop $(DOCKER_COMPOSE_BRIDGE) && $(DOCKER_COMPOSE) rm -f $(DOCKER_COMPOSE_BRIDGE)
+STOP_BRIDGE_1 := $(DOCKER_COMPOSE) stop $(DOCKER_COMPOSE_BRIDGE_1) && $(DOCKER_COMPOSE) rm -f $(DOCKER_COMPOSE_BRIDGE_1)
+STOP_BRIDGE_2 := $(DOCKER_COMPOSE) stop $(DOCKER_COMPOSE_BRIDGE_2) && $(DOCKER_COMPOSE) rm -f $(DOCKER_COMPOSE_BRIDGE_2)
+STOP_BRIDGE_3 := $(DOCKER_COMPOSE) stop $(DOCKER_COMPOSE_BRIDGE_3) && $(DOCKER_COMPOSE) rm -f $(DOCKER_COMPOSE_BRIDGE_3)
 STOP_BRIDGE_V1TOV2 := $(DOCKER_COMPOSE) stop $(DOCKER_COMPOSE_BRIDGE_V1TOV2) && $(DOCKER_COMPOSE) rm -f $(DOCKER_COMPOSE_BRIDGE_V1TOV2)
 STOP := $(DOCKER_COMPOSE) down --remove-orphans
 
@@ -54,15 +81,23 @@ LDFLAGS += -X 'github.com/0xPolygonHermez/zkevm-bridge-service.BuildDate=$(DATE)
 GO_BASE := $(shell pwd)
 GO_BIN := $(GO_BASE)/dist
 GO_ENV_VARS := GO_BIN=$(GO_BIN)
-GO_BINARY := xlayer-bridge
+GO_BINARY := zkevm-bridge
 GO_CMD := $(GO_BASE)/cmd
+GO_DEPLOY_SCRIPT := $(GO_BASE)/test/scripts/deployclaimcompressor
+GO_DEPLOY_SCRIPT_BINARY := test-deploy-claimcompressor
+GO_DEPLOY_AUTOCLAIMER := $(GO_BASE)/autoclaimservice
+GO_DEPLOY_AUTOCLAIMER_BINARY := zkevm-autoclaimer
 
 LINT := $$(go env GOPATH)/bin/golangci-lint run --timeout=5m -E whitespace -E gosec -E gci -E misspell -E gomnd -E gofmt -E goimports --exclude-use-default=false --max-same-issues 0
 BUILD := $(GO_ENV_VARS) go build -ldflags "all=$(LDFLAGS)" -o $(GO_BIN)/$(GO_BINARY) $(GO_CMD)
+BUILDSCRIPTEPLOY := $(GO_ENV_VARS) go build -o $(GO_BIN)/$(GO_DEPLOY_SCRIPT_BINARY) $(GO_DEPLOY_SCRIPT)
+BUILDAUTOCLAIMER := $(GO_ENV_VARS) go build -o $(GO_BIN)/$(GO_DEPLOY_AUTOCLAIMER_BINARY) $(GO_DEPLOY_AUTOCLAIMER)
 
 .PHONY: build
 build: ## Build the binary locally into ./dist
 	$(BUILD)
+	$(BUILDSCRIPTEPLOY)
+	$(BUILDAUTOCLAIMER)
 
 .PHONY: lint
 lint: ## runs linter
@@ -84,7 +119,19 @@ install-linter: ## Installs the linter
 
 .PHONY: build-docker
 build-docker: ## Builds a docker image with the zkevm bridge binary
-	docker build -t xlayer-bridge-service -f ./Dockerfile .
+	docker build -t zkevm-bridge-service -f ./Dockerfile .
+
+.PHONY: build-docker-e2e-real_network
+build-docker-e2e-real_network:  build-docker-e2e-real_network-erc20 build-docker-e2e-real_network-msg ## Builds a docker image with the zkevm bridge binary for e2e tests with real network
+	
+
+.PHONY: build-docker-e2e-real_network-erc20
+build-docker-e2e-real_network-erc20: ## Builds a docker image with the zkevm bridge binary for e2e ERC20 tests with real network
+	docker build  -f DockerfileE2ETest .  -t bridge-e2e-realnetwork-erc20 --target ERC20
+
+.PHONY: build-docker-e2e-real_network-msg
+build-docker-e2e-real_network-msg: ## Builds a docker image with the zkevm bridge binary for e2e BridgeMessage tests with real network
+	docker build  -f DockerfileE2ETest .  -t bridge-e2e-realnetwork-msg --target MSG
 
 .PHONY: run-db-node
 run-db-node: ## Runs the node database
@@ -106,25 +153,51 @@ stop-db-bridge: ## Stops the node database
 run-dbs: ## Runs the node database
 	$(RUN_DBS)
 
+.PHONY: run-dbs-2
+run-dbs-2: ## Runs the node database
+	$(RUN_DBS_2)
+
 .PHONY: stop-dbs
 stop-dbs: ## Stops the node database
 	$(STOP_DBS)
+	$(STOP_DBS_2)
 
 .PHONY: run-node
 run-node: ## Runs the node
 	$(RUN_NODE)
 
+.PHONY: run-node-2
+run-node-2: ## Runs the node
+	$(RUN_NODE_2)
+
+.PHONY: run-node-1
+run-node-1: ## Runs the node
+	$(RUN_NODE_1)
+
 .PHONY: stop-node
 stop-node: ## Stops the node
 	$(STOP_NODE)
+
+.PHONY: stop-node-2
+stop-node-2: ## Stops the node
+	$(STOP_NODE_2)
+
+.PHONY: stop-node-1
+stop-node-1: ## Stops the node
+	$(STOP_NODE_1)
 
 .PHONY: run-network
 run-network: ## Runs the l1 network
 	$(RUN_L1_NETWORK)
 
+.PHONY: run-network-multi-rollup
+run-network-multi-rollup: ## Runs the l1 network
+	$(RUN_L1_NETWORK_MULTI_ROLLUP)
+
 .PHONY: stop-network
 stop-network: ## Stops the l1 network
 	$(STOP_NETWORK)
+	$(STOP_NETWORK_MULTI_ROLLUP)
 
 .PHONY: run-node-v1tov2
 run-node-v1tov2: ## Runs the node
@@ -158,6 +231,22 @@ run-prover: ## Runs the zk prover
 stop-prover: ## Stops the zk prover
 	$(STOP_ZKPROVER)
 
+.PHONY: run-prover-1
+run-prover-1: ## Runs the zk prover
+	$(RUN_ZKPROVER_1)
+
+.PHONY: stop-prover-1
+stop-prover-1: ## Stops the zk prover
+	$(STOP_ZKPROVER_1)
+
+.PHONY: run-prover-2
+run-prover-2: ## Runs the zk prover
+	$(RUN_ZKPROVER_2)
+
+.PHONY: stop-prover-2
+stop-prover-2: ## Stops the zk prover
+	$(STOP_ZKPROVER_2)
+
 .PHONY: run-prover-v1tov2
 run-prover-v1tov2: ## Runs the zk prover
 	$(RUN_ZKPROVER_V1TOV2)
@@ -173,6 +262,30 @@ run-bridge: ## Runs the bridge service
 .PHONY: stop-bridge
 stop-bridge: ## Stops the bridge service
 	$(STOP_BRIDGE)
+
+.PHONY: run-bridge-1
+run-bridge-1: ## Runs the bridge service
+	$(RUN_BRIDGE_1)
+
+.PHONY: stop-bridge-1
+stop-bridge-1: ## Stops the bridge service
+	$(STOP_BRIDGE_1)
+
+.PHONY: run-bridge-2
+run-bridge-2: ## Runs the bridge service
+	$(RUN_BRIDGE_2)
+
+.PHONY: stop-bridge-2
+stop-bridge-2: ## Stops the bridge service
+	$(STOP_BRIDGE_2)
+
+.PHONY: run-bridge-3
+run-bridge-3: ## Runs the bridge service
+	$(RUN_BRIDGE_3)
+
+.PHONY: stop-bridge-3
+stop-bridge-3: ## Stops the bridge service
+	$(STOP_BRIDGE_3)
 
 .PHONY: run-bridge-v1tov2
 run-bridge-v1tov2: ## Runs the bridge service
@@ -190,7 +303,7 @@ stop: ## Stops all services
 restart: stop run ## Executes `make stop` and `make run` commands
 
 .PHONY: run
-run: stop ## runs all services
+run: ## runs all services
 	$(RUN_DBS)
 	$(RUN_L1_NETWORK)
 	sleep 5
@@ -199,6 +312,67 @@ run: stop ## runs all services
 	$(RUN_NODE)
 	sleep 7
 	$(RUN_BRIDGE)
+
+.PHONY: run-1
+run-1: ## runs all services
+	$(RUN_DBS)
+	$(RUN_L1_NETWORK_MULTI_ROLLUP)
+	sleep 5
+	$(RUN_ZKPROVER_1)
+	sleep 3
+	$(RUN_NODE_1)
+	sleep 7
+	$(RUN_BRIDGE_1)
+
+.PHONY: run-2
+run-2: ## runs all services
+	$(RUN_DBS_2)
+	$(RUN_L1_NETWORK_MULTI_ROLLUP)
+	sleep 5
+	$(RUN_ZKPROVER_2)
+	sleep 3
+	$(RUN_NODE_2)
+	sleep 7
+	$(RUN_BRIDGE_2)
+
+.PHONY: run-multi
+run-multi: ## runs all services
+	$(RUN_DBS)
+	$(RUN_DBS_2)
+	$(RUN_L1_NETWORK_MULTI_ROLLUP)
+	sleep 5
+	$(RUN_ZKPROVER_1)
+	$(RUN_ZKPROVER_2)
+	sleep 3
+	$(RUN_NODE_1)
+	$(RUN_NODE_2)
+	sleep 7
+	$(RUN_BRIDGE_1)
+	$(RUN_BRIDGE_2)
+
+.PHONY: run-multi-single-bridge
+run-multi-single-bridge: ## runs all services
+	$(RUN_DBS)
+	${RUN_STATE_DB_2}
+	${RUN_POOL_DB_2}
+	$(RUN_L1_NETWORK_MULTI_ROLLUP)
+	sleep 5
+	$(RUN_ZKPROVER_1)
+	$(RUN_ZKPROVER_2)
+	sleep 3
+	$(RUN_NODE_1)
+	$(RUN_NODE_2)
+	sleep 7
+	$(RUN_BRIDGE_3)
+
+.PHONY: run-bridge-dependencies
+run-bridge-dependencies: stop ## runs all services
+	$(RUN_DBS)
+	$(RUN_L1_NETWORK)
+	sleep 5
+	$(RUN_ZKPROVER)
+	sleep 3
+	$(RUN_NODE)
 
 .PHONY: run-v1tov2
 run-v1tov2: stop ## runs all services
@@ -249,6 +423,28 @@ test-edge: build-docker stop run ## Runs all tests checking race conditions
 	sleep 3
 	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -v -failfast -race -p 1 -timeout 2400s ./test/e2e/... -count 1 -tags='edge'
 
+.PHONY: test-multiplerollups
+test-multiplerollups: build-docker stop run-multi-single-bridge ## Runs all tests checking race conditions
+	sleep 3
+	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -v -failfast -race -p 1 -timeout 2400s ./test/e2e/... -count 1 -tags='multiplerollups'
+
+.PHONY: test-l2l2
+test-l2l2: build-docker stop run-multi-single-bridge ## Runs all tests checking race conditions
+	sleep 3
+	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -v -failfast -race -p 1 -timeout 2400s ./test/e2e/... -count 1 -tags='l2l2'
+
+.PHONY: test-e2ecompress
+test-e2ecompress: build-docker stop run-multi-single-bridge ## Runs all tests checking race conditions
+	sleep 3
+	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -v -failfast -race -p 1 -timeout 2400s ./test/e2e/... -count 1 -tags='e2ecompress'
+
+.PHONY: build-test-e2e-real_network
+build-test-e2e-real_network: ## Build binary for e2e tests with real network
+	go test -c ./test/e2e/ -o dist/zkevm-bridge-e2e-real_network-erc20 -tags='e2e_real_network_erc20'
+	go test -c ./test/e2e/ -o dist/zkevm-bridge-e2e-real_network-bridgemsg -tags='e2e_real_network_msg'
+	./dist/zkevm-bridge-e2e-real_network-erc20 -test.failfast -test.list Test
+	./dist/zkevm-bridge-e2e-real_network-bridgemsg -test.failfast -test.list Test
+
 .PHONY: validate
 validate: lint build test-full ## Validates the whole integrity of the code base
 
@@ -263,10 +459,20 @@ help: ## Prints this help
 		| sort \
 		| awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
+COMMON_MOCKERY_PARAMS=--disable-version-string --with-expecter
 .PHONY: generate-mocks
 generate-mocks: ## Generates mocks for the tests, using mockery tool
-	mockery --name=ethermanInterface --dir=synchronizer --output=synchronizer --outpkg=synchronizer --structname=ethermanMock --filename=mock_etherman.go
-	mockery --name=storageInterface --dir=synchronizer --output=synchronizer --outpkg=synchronizer --structname=storageMock --filename=mock_storage.go
-	mockery --name=bridgectrlInterface --dir=synchronizer --output=synchronizer --outpkg=synchronizer --structname=bridgectrlMock --filename=mock_bridgectrl.go
-	mockery --name=Tx --srcpkg=github.com/jackc/pgx/v4 --output=synchronizer --outpkg=synchronizer --structname=dbTxMock --filename=mock_dbtx.go
-	mockery --name=zkEVMClientInterface --dir=synchronizer --output=synchronizer --outpkg=synchronizer --structname=zkEVMClientMock --filename=mock_zkevmclient.go
+	mockery --name=ethermanInterface --dir=synchronizer --output=synchronizer --outpkg=synchronizer --structname=ethermanMock --filename=mock_etherman.go ${COMMON_MOCKERY_PARAMS}
+	mockery --name=storageInterface --dir=synchronizer --output=synchronizer --outpkg=synchronizer --structname=storageMock --filename=mock_storage.go ${COMMON_MOCKERY_PARAMS}
+	mockery --name=bridgectrlInterface --dir=synchronizer --output=synchronizer --outpkg=synchronizer --structname=bridgectrlMock --filename=mock_bridgectrl.go ${COMMON_MOCKERY_PARAMS}
+	mockery --name=Tx --srcpkg=github.com/jackc/pgx/v4 --output=synchronizer --outpkg=synchronizer --structname=dbTxMock --filename=mock_dbtx.go ${COMMON_MOCKERY_PARAMS}
+	mockery --name=bridgeServiceStorage --dir=server --output=server --outpkg=server --structname=bridgeServiceStorageMock --filename=mock_bridgeServiceStorage.go ${COMMON_MOCKERY_PARAMS}
+	
+	rm -Rf claimtxman/mocks
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --all --case snake --dir claimtxman/ --output claimtxman/mocks --outpkg mock_txcompressor ${COMMON_MOCKERY_PARAMS}
+	
+
+.PHONY: generate-smartcontracts-bindings
+generate-smartcontracts-bindings:	## Generates the smart contracts bindings
+	cd scripts && ./generate-smartcontracts-bindings.sh
+	
