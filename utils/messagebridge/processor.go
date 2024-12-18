@@ -75,7 +75,7 @@ func (u *Processor) ReplaceDepositInfo(deposit *etherman.Deposit, overwriteOrigN
 // getProcessor returns the correct message bridge processor for the address
 func getProcessor(origAddr, dstContractAddr common.Address) *Processor {
 	for _, processor := range processorMap {
-		if processor.CheckContractAddress(origAddr) && processor.CheckContractAddress(dstContractAddr) {
+		if processor.CheckContractAddress(origAddr) {
 			return processor
 		}
 	}
