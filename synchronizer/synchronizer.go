@@ -649,9 +649,10 @@ func (s *ClientSynchronizer) processClaim(claim etherman.Claim, blockID uint64, 
 		return err
 	}
 
+	// For X Layer
 	// It shouldn't block the sync process
 	go s.afterProcessClaim(&claim, dbTx)
-	
+
 	return nil
 }
 
