@@ -191,11 +191,15 @@ func (s *ClientSynchronizer) afterProcessClaim(claim *etherman.Claim, dbTx pgx.T
 	// Retrieve deposit transaction info
 	deposit, err := s.storage.GetDeposit(s.ctx, claim.Index, originNetwork, nil)
 	if err != nil {
-		log.Errorf("networkID: %d, get deposit error, BlockNumber: %d, Deposit: %+v, err: %s", s.networkID, deposit.BlockNumber, deposit, err)
+		blockNumber := 0
+		if deposit != nil {
+			blockNumber = int(deposit.BlockNumber)
+		}
+		log.Errorf("networkID: %d, get deposit error, BlockNumber: %d, Deposit: %+v, err: %s", s.networkID, blockNumber, deposit, err)
 		rollbackErr := s.storage.Rollback(s.ctx, dbTx)
 		if rollbackErr != nil {
 			log.Errorf("networkID: %d, error rolling back state to store block. BlockNumber: %v, rollbackErr: %v, err: %s",
-				s.networkID, deposit.BlockNumber, rollbackErr, err.Error())
+				s.networkID, blockNumber, rollbackErr, err.Error())
 			return rollbackErr
 		}
 		return err
