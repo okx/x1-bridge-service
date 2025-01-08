@@ -649,7 +649,10 @@ func (s *ClientSynchronizer) processClaim(claim etherman.Claim, blockID uint64, 
 		return err
 	}
 
-	return s.afterProcessClaim(&claim, dbTx)
+	// It shouldn't block the sync process
+	go s.afterProcessClaim(&claim, dbTx)
+	
+	return nil
 }
 
 func (s *ClientSynchronizer) processTokenWrapped(tokenWrapped etherman.TokenWrapped, blockID uint64, dbTx pgx.Tx) error {

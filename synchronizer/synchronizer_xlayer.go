@@ -182,35 +182,18 @@ func (s *ClientSynchronizer) getEstimateTimeForDepositCreated(networkId uint) ui
 	return uint32(pushtask.GetAvgCommitDuration(s.ctx, s.redisStorage))
 }
 
-func (s *ClientSynchronizer) afterProcessClaim(claim *etherman.Claim, dbTx pgx.Tx) error {
-	originNetwork := uint(0)
-	if !claim.MainnetFlag {
-		originNetwork = uint(claim.RollupIndex + 1)
-	}
-
-	// Retrieve deposit transaction info
-	deposit, err := s.storage.GetDeposit(s.ctx, claim.Index, originNetwork, nil)
-	if err != nil {
-		log.Errorf("networkID: %d, get deposit error, BlockNumber: %d, Deposit: %+v, err: %s", s.networkID, deposit.BlockNumber, deposit, err)
-		rollbackErr := s.storage.Rollback(s.ctx, dbTx)
-		if rollbackErr != nil {
-			log.Errorf("networkID: %d, error rolling back state to store block. BlockNumber: %v, rollbackErr: %v, err: %s",
-				s.networkID, deposit.BlockNumber, rollbackErr, err.Error())
-			return rollbackErr
-		}
-		return err
+func (s *ClientSynchronizer) afterProcessClaim(claim *etherman.Claim, dbTx pgx.Tx) {
+	// Try to retrieve deposit transaction info
+	deposit, err := s.storage.GetDeposit(s.ctx, claim.Index, claim.OriginalNetwork, nil)
+	if err != nil || deposit == nil {
+		log.Warnf("failed to get deposit for claim, claim: %+v, err: %v", claim, err)
+		return
 	}
 
 	err = s.processWstETHClaim(deposit, dbTx)
 	if err != nil {
-		log.Errorf("networkID: %d, processWstETHClaim error, BlockNumber: %d, Deposit: %+v, err: %s", s.networkID, deposit.BlockNumber, deposit, err)
-		rollbackErr := s.storage.Rollback(s.ctx, dbTx)
-		if rollbackErr != nil {
-			log.Errorf("networkID: %d, error rolling back state to store block. BlockNumber: %v, rollbackErr: %v, err: %s",
-				s.networkID, deposit.BlockNumber, rollbackErr, err.Error())
-			return rollbackErr
-		}
-		return err
+		log.Warnf("failed to process wstETH claim, claim: %+v, err: %v", claim, err)
+		return
 	}
 
 	// Notify FE that the tx has been claimed
@@ -241,7 +224,6 @@ func (s *ClientSynchronizer) afterProcessClaim(claim *etherman.Claim, dbTx pgx.T
 			log.Errorf("PushTransactionUpdate error: %v", err)
 		}
 	}()
-	return nil
 }
 
 func (s *ClientSynchronizer) getGlobalIndex(deposit *etherman.Deposit) *big.Int {
